@@ -1,0 +1,11 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  profiles:
+    active: ${APP_ENV:local}
+
+server:
+  port: ${APP_PORT:8080}
+
+app:
+  timezone: ${APP_TIMEZONE:Asia/Seoul}
