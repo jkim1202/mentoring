@@ -1,6 +1,6 @@
 package org.example.mentoring.security;
 
-import org.example.mentoring.entity.Role;
+import org.example.mentoring.user.entity.Role;
 import org.springframework.security.core.GrantedAuthority;
 
 public class MentoringGrantedAuthority implements GrantedAuthority {

@@ -1,7 +1,8 @@
-package org.example.mentoring.entity;
+package org.example.mentoring.user.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
@@ -12,6 +13,7 @@ import java.util.Date;
 import java.util.Set;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users")
@@ -19,7 +21,7 @@ import java.util.Set;
 @EntityListeners(AuditingEntityListener.class)
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id",  unique = true, nullable = false)
     private Long id;
 
@@ -29,7 +31,7 @@ public class User {
     @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "nickname", nullable = false, length = 30)
+    @Column(name = "nickname", nullable = true, length = 30)
     private String nickname;
 
     @Column(name = "phone", length = 30)

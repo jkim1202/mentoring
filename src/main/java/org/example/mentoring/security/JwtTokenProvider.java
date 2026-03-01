@@ -53,25 +53,25 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String getEmailFromToken(String token) {
+    public String getEmailFromAccessToken(String token) {
         validateToken(token,accessKey);
         return getClaimFromToken(token,accessKey,Claims::getSubject);
     }
 
-    private String getEmailFromToken(String token, SecretKey secretKey) {
-        validateToken(token,secretKey);
-        return getClaimFromToken(token,secretKey,Claims::getSubject);
+    public String getEmailFromRefreshToken(String token) {
+        validateToken(token,refreshKey);
+        return getClaimFromToken(token,refreshKey,Claims::getSubject);
     }
 
     public boolean validateAccessToken(String token, UserDetails userDetails) {
         validateToken(token,accessKey);
-        String tokenEmail = getEmailFromToken(token, accessKey);
+        String tokenEmail = getEmailFromAccessToken(token);
         return tokenEmail != null && tokenEmail.equals(userDetails.getUsername());
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {
         validateToken(token,refreshKey);
-        String tokenEmail = getEmailFromToken(token, refreshKey);
+        String tokenEmail = getEmailFromRefreshToken(token);
         return tokenEmail != null && tokenEmail.equals(userDetails.getUsername());
     }
 

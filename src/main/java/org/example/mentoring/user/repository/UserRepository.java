@@ -1,6 +1,6 @@
-package org.example.mentoring.repository;
+package org.example.mentoring.user.repository;
 
-import org.example.mentoring.entity.User;
+import org.example.mentoring.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

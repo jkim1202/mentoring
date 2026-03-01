@@ -1,9 +1,9 @@
 package org.example.mentoring.security;
 
-import org.example.mentoring.entity.User;
+import org.example.mentoring.user.entity.User;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.example.mentoring.repository.UserRepository;
+import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -1,7 +1,5 @@
 package org.example.mentoring.security;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,11 +26,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger LOG = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Autowired
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, UserDetailsService userDetailsService, JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     }
 
     @Override
@@ -43,38 +44,48 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwtToken = authHeader.substring(7);
             try {
-                email = jwtTokenProvider.getEmailFromToken(jwtToken);
+                email = jwtTokenProvider.getEmailFromAccessToken(jwtToken);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                boolean isTokenValid;
+                try {
+                     isTokenValid = jwtTokenProvider.validateAccessToken(jwtToken, userDetails);
+                } catch (BusinessException e) {
+                    request.setAttribute("errorCode", e.getErrorCode());
+                    SecurityContextHolder.clearContext();
+                    jwtAuthenticationEntryPoint.commence(
+                            request,
+                            response,
+                            new InsufficientAuthenticationException("JWT auth failed")
+                    );
+                    return;
+                }
+                if (isTokenValid) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
-            catch (IllegalArgumentException e) {
-                LOG.error("Unable to get JWT");
-                throw new BusinessException(ErrorCode.AUTH_UNSUPPORTED_TOKEN);
-            }
-            catch (ExpiredJwtException e) {
-                LOG.warn("JWT token is expired");
-                throw new BusinessException(ErrorCode.AUTH_EXPIRED_TOKEN);
-            }
-            catch (UnsupportedJwtException e) {
-                LOG.warn("JWT token is unsupported");
-                throw new BusinessException(ErrorCode.AUTH_UNSUPPORTED_TOKEN);
+            catch (Exception e) {
+                ErrorCode ec = (e instanceof BusinessException be)
+                        ? be.getErrorCode()
+                        : ErrorCode.AUTH_INVALID_TOKEN;
+                request.setAttribute("errorCode", ec);
+                SecurityContextHolder.clearContext();
+                jwtAuthenticationEntryPoint.commence(
+                        request,
+                        response,
+                        new InsufficientAuthenticationException("JWT auth failed")
+                );
             }
         } else {
             LOG.warn("JWT does not start with Bearer String");
         }
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            if (jwtTokenProvider.validateAccessToken(jwtToken, userDetails)){
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            } else {
-                LOG.warn("Invalid JWT token");
-            }
-        }
+
         filterChain.doFilter(request,response);
     }
 }

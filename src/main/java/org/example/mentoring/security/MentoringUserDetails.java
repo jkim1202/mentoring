@@ -1,6 +1,7 @@
 package org.example.mentoring.security;
 
-import org.example.mentoring.entity.UserStatus;
+import lombok.Getter;
+import org.example.mentoring.user.entity.UserStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -9,6 +10,7 @@ import java.util.Objects;
 
 public class MentoringUserDetails implements UserDetails {
 
+    @Getter
     private final Long id;
     private final String email;
     private final String passwordHash;
@@ -29,10 +31,6 @@ public class MentoringUserDetails implements UserDetails {
         this.authorities = authorities;
     }
 
-    public Long getId() {
-        return id;
-    }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
@@ -49,18 +47,8 @@ public class MentoringUserDetails implements UserDetails {
     }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
     public boolean isAccountNonLocked() {
         return !Objects.equals(status, UserStatus.SUSPENDED);
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
     }
 
     @Override

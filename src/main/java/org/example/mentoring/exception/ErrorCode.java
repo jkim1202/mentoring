@@ -12,6 +12,7 @@ public enum ErrorCode {
     AUTH_EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_003", "만료된 토큰입니다."),
     AUTH_UNSUPPORTED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_004", "지원하지 않은 토큰 타입/구조입니다."),
     AUTH_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AUTH_005", "권한이 부족합니다."),
+    AUTH_STATUS_NOT_ACTIVE(HttpStatus.FORBIDDEN, "AUTH_006", "비활성화/삭제된 계정입니다."),
 
     COMMON_INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON_001", "유효하지 않은 입력입니다."),
     COMMON_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_002", "서버 내부 오류입니다."),
