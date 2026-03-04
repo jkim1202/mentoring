@@ -1,0 +1,117 @@
+package org.example.mentoring.listing.service;
+
+import jakarta.transaction.Transactional;
+import org.example.mentoring.exception.BusinessException;
+import org.example.mentoring.exception.ErrorCode;
+import org.example.mentoring.listing.dto.ListingResponseDto;
+import org.example.mentoring.listing.dto.ListingSearchRequestDto;
+import org.example.mentoring.listing.dto.ListingSummaryResponseDto;
+import org.example.mentoring.listing.dto.ListingUpdateRequestDto;
+import org.example.mentoring.listing.entity.Listing;
+import org.example.mentoring.listing.entity.ListingStatus;
+import org.example.mentoring.listing.entity.PlaceType;
+import org.example.mentoring.listing.repository.ListingRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ListingService {
+
+    private final ListingRepository listingRepository;
+
+    @Autowired
+    public ListingService(ListingRepository listingRepository) {
+        this.listingRepository = listingRepository;
+    }
+
+    @Transactional
+    public ListingResponseDto getListing(Long id) {
+        return ListingResponseDto
+                .from(listingRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.LISTING_NOT_FOUND)
+                        )
+                );
+    }
+
+    @Transactional
+    public Page<ListingSummaryResponseDto> getListings(ListingSearchRequestDto searchRequestDto) {
+        int page = searchRequestDto.page() == null ? 0 : searchRequestDto.page();
+        int size = searchRequestDto.size() == null ? 10 : searchRequestDto.size();
+        String sort = searchRequestDto.sort() == null ? "LATEST" : searchRequestDto.sort();
+
+        Pageable pageable = PageRequest.of(page, size, toSort(sort));
+        return listingRepository.findAll(pageable)
+                .map(listing -> new ListingSummaryResponseDto(
+                        listing.getId(),
+                        listing.getTitle(),
+                        listing.getTopic(),
+                        listing.getPrice(),
+                        listing.getAvgRating(),
+                        listing.getReviewCount()
+                ));
+    }
+
+    @Transactional
+    public ListingResponseDto updateListing(Long listingId, Long loginId, ListingUpdateRequestDto req) {
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
+
+        if (!listing.getMentor().getId().equals(loginId)) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        if (listing.getStatus() != ListingStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.LISTING_NOT_EDITABLE);
+        }
+
+        if (req.title() != null && !req.title().isEmpty()) {
+            listing.setTitle(req.title());
+        }
+        if (req.topic() != null && !req.topic().isEmpty()) {
+            listing.setTopic(req.topic());
+        }
+        if (req.price() != null) {
+            listing.setPrice(req.price());
+        }
+        if (req.placeType() != null) {
+            listing.setPlaceType(req.placeType());
+        }
+        if (req.description() != null) {
+            listing.setDescription(req.description());
+        }
+
+        if (req.placeType() != null || req.placeDesc() != null) {
+            PlaceType finalType = req.placeType() != null ? req.placeType() : listing.getPlaceType();
+            String finalDesc = req.placeDesc() != null ? req.placeDesc() : listing.getPlaceDesc();
+
+            if (finalType == PlaceType.ONLINE) {
+                listing.setPlaceDesc(null); // ONLINE이면 장소 설명 제거
+            } else {
+                listing.setPlaceDesc(finalDesc); // OFFLINE이면 placeDesc 사용
+            }
+        }
+        return ListingResponseDto.from(listing);
+    }
+
+    private Sort toSort(String sort) {
+        return switch (sort.toUpperCase()) {
+            case "RATING" -> Sort.by(
+                    Sort.Order.desc("avgRating"),
+                    Sort.Order.desc("reviewCount")
+            );
+            case "REVIEWS" -> Sort.by(
+                    Sort.Order.desc("reviewCount"),
+                    Sort.Order.desc("avgRating")
+            );
+            case "PRICE_ASC" -> Sort.by(Sort.Direction.ASC, "price");
+            case "PRICE_DESC" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
+    }
+}
