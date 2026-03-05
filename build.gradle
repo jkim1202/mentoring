@@ -24,6 +24,13 @@ repositories {
     mavenCentral()
 }
 
+def queryDslVersion = "7.0" // 25년 7월 기준 가장 최신
+def querydslSrcDir  = layout.buildDirectory.dir("generated/querydsl").get().asFile // build/generated/querydsl
+
+tasks.withType(JavaCompile).configureEach {
+    options.getGeneratedSourceOutputDirectory().set(file(querydslSrcDir))
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -37,6 +44,11 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
+    // Querydsl 의존성
+    implementation("io.github.openfeign.querydsl:querydsl-core:${queryDslVersion}")
+    implementation("io.github.openfeign.querydsl:querydsl-jpa:$queryDslVersion")
+    annotationProcessor("io.github.openfeign.querydsl:querydsl-apt:$queryDslVersion:jakarta")
+
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'com.mysql:mysql-connector-j'

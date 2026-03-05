@@ -40,13 +40,15 @@ public class ListingService {
     }
 
     @Transactional
-    public Page<ListingSummaryResponseDto> getListings(ListingSearchRequestDto searchRequestDto) {
-        int page = searchRequestDto.page() == null ? 0 : searchRequestDto.page();
-        int size = searchRequestDto.size() == null ? 10 : searchRequestDto.size();
-        String sort = searchRequestDto.sort() == null ? "LATEST" : searchRequestDto.sort();
+    public Page<ListingSummaryResponseDto> getListings(ListingSearchRequestDto req) {
+        if (req.maxPrice() != null && req.minPrice() != null && req.maxPrice() < req.minPrice())
+            throw new BusinessException(ErrorCode.LISTING_INVALID_PRICE_RANGE);
+        int page = req.page() == null ? 0 : req.page();
+        int size = req.size() == null ? 10 : req.size();
+        String sort = req.sort() == null ? "LATEST" : req.sort();
 
         Pageable pageable = PageRequest.of(page, size, toSort(sort));
-        return listingRepository.findAll(pageable)
+        return listingRepository.search(req, pageable)
                 .map(listing -> new ListingSummaryResponseDto(
                         listing.getId(),
                         listing.getTitle(),
@@ -56,6 +58,7 @@ public class ListingService {
                         listing.getReviewCount()
                 ));
     }
+
 
     @Transactional
     public ListingResponseDto updateListing(Long listingId, Long loginId, ListingUpdateRequestDto req) {

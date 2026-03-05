@@ -22,7 +22,8 @@ public enum ErrorCode {
     USER_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_002", "이미 사용 중인 이메일입니다."),
 
     LISTING_NOT_FOUND(HttpStatus.NOT_FOUND, "LISTING_001", "게시글을 찾을 수 없습니다."),
-    LISTING_NOT_EDITABLE(HttpStatus.FORBIDDEN, "LISTING_002", "게시글을 수정할 수 없습니다.");
+    LISTING_NOT_EDITABLE(HttpStatus.FORBIDDEN, "LISTING_002", "게시글을 수정할 수 없습니다."),
+    LISTING_INVALID_PRICE_RANGE(HttpStatus.BAD_REQUEST, "LISTING_003", "최소 금액은 최대 금액보다 클 수 없습니다.");
     private final HttpStatus status;
     private final String code;
     private final String message;
