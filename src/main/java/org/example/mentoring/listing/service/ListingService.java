@@ -3,14 +3,13 @@ package org.example.mentoring.listing.service;
 import jakarta.transaction.Transactional;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.example.mentoring.listing.dto.ListingResponseDto;
-import org.example.mentoring.listing.dto.ListingSearchRequestDto;
-import org.example.mentoring.listing.dto.ListingSummaryResponseDto;
-import org.example.mentoring.listing.dto.ListingUpdateRequestDto;
+import org.example.mentoring.listing.dto.*;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.ListingStatus;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.repository.ListingRepository;
+import org.example.mentoring.user.entity.User;
+import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,10 +21,33 @@ import org.springframework.stereotype.Service;
 public class ListingService {
 
     private final ListingRepository listingRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public ListingService(ListingRepository listingRepository) {
+    public ListingService(ListingRepository listingRepository, UserRepository userRepository) {
         this.listingRepository = listingRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public ListingResponseDto createListing(Long loginId, ListingCreateRequestDto req) {
+        User mentor = userRepository.findById(loginId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        String placeDesc = req.placeType() == PlaceType.ONLINE ? null : req.placeDesc();
+        if(req.placeType() == PlaceType.OFFLINE && (req.placeDesc() == null || req.placeDesc().isBlank()))
+            throw new BusinessException(ErrorCode.COMMON_INVALID_INPUT);
+        Listing listing = Listing.builder()
+                .mentor(mentor)
+                .title(req.title())
+                .topic(req.topic())
+                .price(req.price())
+                .placeType(req.placeType())
+                .placeDesc(placeDesc)
+                .description(req.description())
+                .build();
+
+        return ListingResponseDto.from(listingRepository.save(listing));
     }
 
     @Transactional
@@ -73,10 +95,10 @@ public class ListingService {
             throw new BusinessException(ErrorCode.LISTING_NOT_EDITABLE);
         }
 
-        if (req.title() != null && !req.title().isEmpty()) {
+        if (req.title() != null && !req.title().isBlank()) {
             listing.setTitle(req.title());
         }
-        if (req.topic() != null && !req.topic().isEmpty()) {
+        if (req.topic() != null && !req.topic().isBlank()) {
             listing.setTopic(req.topic());
         }
         if (req.price() != null) {
@@ -99,6 +121,23 @@ public class ListingService {
                 listing.setPlaceDesc(finalDesc); // OFFLINE이면 placeDesc 사용
             }
         }
+        return ListingResponseDto.from(listing);
+    }
+
+    @Transactional
+    public ListingResponseDto updateStatus(
+            Long listingId,
+            Long loginId,
+            ListingStatusUpdateRequestDto req
+    ) {
+        Listing listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
+
+        if (!listing.getMentor().getId().equals(loginId)) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        listing.setStatus(req.status());
         return ListingResponseDto.from(listing);
     }
 
