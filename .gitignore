@@ -41,6 +41,8 @@ out/
 .env.*
 !.env.example
 *.local
+src/main/resources/application-local.yml
+src/main/resources/application-*.local.yml
 secrets/
 credentials/
 
