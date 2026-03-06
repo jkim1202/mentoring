@@ -64,6 +64,4 @@ credentials/
 *.log
 
 ### Local planning docs ###
-mentor-mentee-blueprint.md
-sprint1-handoff.md
-learning-feedback-log.md
+docs-local/
