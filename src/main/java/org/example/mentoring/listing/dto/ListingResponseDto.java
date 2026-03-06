@@ -1,6 +1,7 @@
 package org.example.mentoring.listing.dto;
 
 import org.example.mentoring.listing.entity.Listing;
+import org.example.mentoring.listing.entity.ListingStatus;
 import org.example.mentoring.listing.entity.PlaceType;
 
 public record ListingResponseDto(
@@ -10,7 +11,8 @@ public record ListingResponseDto(
         Integer price,
         PlaceType placeType,
         String description,
-        String placeDesc
+        String placeDesc,
+        ListingStatus status
 ) {
     public static ListingResponseDto from(Listing listing) {
         return new ListingResponseDto(
@@ -20,7 +22,8 @@ public record ListingResponseDto(
                 listing.getPrice(),
                 listing.getPlaceType(),
                 listing.getDescription(),
-                listing.getPlaceDesc()
+                listing.getPlaceDesc(),
+                listing.getStatus()
         );
     }
 }

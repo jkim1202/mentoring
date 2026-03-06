@@ -3,9 +3,8 @@ package org.example.mentoring.listing.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.example.mentoring.listing.dto.ListingResponseDto;
-import org.example.mentoring.listing.dto.ListingSummaryResponseDto;
-import org.example.mentoring.listing.dto.ListingUpdateRequestDto;
+import org.example.mentoring.listing.dto.*;
+import org.example.mentoring.listing.entity.ListingStatus;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.service.ListingService;
 import org.example.mentoring.security.JwtAuthenticationFilter;
@@ -33,6 +32,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,6 +57,40 @@ class ListingControllerTest {
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Test
+    @DisplayName("생성 성공")
+    void create_listing_success() throws Exception {
+        ListingCreateRequestDto req = new ListingCreateRequestDto(
+                "새 멘토링",
+                "Spring",
+                60000,
+                PlaceType.ONLINE,
+                null,
+                "실무 중심 멘토링"
+        );
+
+        ListingResponseDto res = new ListingResponseDto(
+                10L,
+                "새 멘토링",
+                "Spring",
+                60000,
+                PlaceType.ONLINE,
+                "실무 중심 멘토링",
+                null,
+                ListingStatus.ACTIVE
+        );
+
+        given(listingService.createListing(any(), any(ListingCreateRequestDto.class))).willReturn(res);
+
+        mockMvc.perform(post("/api/listings")
+                        .with(authentication(authOf(10L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.title").value("새 멘토링"));
+    }
 
     @Test
     @DisplayName("목록 조회 성공")
@@ -89,7 +123,8 @@ class ListingControllerTest {
                 50000,
                 PlaceType.ONLINE,
                 "실무 위주 멘토링",
-                null
+                null,
+                ListingStatus.ACTIVE
         );
 
         given(listingService.getListing(1L)).willReturn(res);
@@ -119,7 +154,8 @@ class ListingControllerTest {
                 50000,
                 PlaceType.ONLINE,
                 "수정된 설명",
-                null
+                null,
+                ListingStatus.ACTIVE
         );
 
         given(listingService.updateListing(eq(1L), any(), any(ListingUpdateRequestDto.class))).willReturn(res);
@@ -166,4 +202,40 @@ class ListingControllerTest {
         );
         return new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
     }
+
+    @Test
+    @DisplayName("상태 변경 성공 - ACTIVE -> INACTIVE")
+    void update_listing_status_active_to_inactive_success() throws Exception {
+        ListingStatusUpdateRequestDto req = new ListingStatusUpdateRequestDto(ListingStatus.INACTIVE);
+        ListingResponseDto res = new ListingResponseDto(
+                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.INACTIVE
+        );
+        given(listingService.updateStatus(eq(1L), any(Long.class), any(ListingStatusUpdateRequestDto.class))).willReturn(res);
+
+        mockMvc.perform(patch("/api/listings/1/status")
+                        .with(authentication(authOf(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("INACTIVE"));
+    }
+
+    @Test
+    @DisplayName("상태 변경 실패 - DELETE -> ACTIVE")
+    void update_listing_status_delete_to_active_fail() throws Exception {
+        ListingStatusUpdateRequestDto req = new ListingStatusUpdateRequestDto(ListingStatus.ACTIVE);
+        ListingResponseDto res = new ListingResponseDto(
+                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.DELETED
+        );
+        given(listingService.updateStatus(eq(1L), any(Long.class), any(ListingStatusUpdateRequestDto.class))).willThrow(new BusinessException(ErrorCode.LISTING_INVALID_STATUS_TRANSITION));
+
+        mockMvc.perform(patch("/api/listings/1/status")
+                        .with(authentication(authOf(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("LISTING_004"));
+    }
+
 }

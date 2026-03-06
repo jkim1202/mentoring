@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.example.mentoring.exception.BusinessException;
+import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.user.entity.User;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -64,4 +66,11 @@ public class Listing {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    public void setStatus(ListingStatus newStatus) {
+        if(!this.status.canChangeTo(newStatus)) {
+            throw new BusinessException(ErrorCode.LISTING_INVALID_STATUS_TRANSITION);
+        }
+        this.status = newStatus;
+    }
 }
