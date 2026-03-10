@@ -1,10 +1,7 @@
 package org.example.mentoring.listing.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.user.entity.User;
@@ -15,7 +12,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -67,10 +64,35 @@ public class Listing {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    public void setStatus(ListingStatus newStatus) {
+    public void updateStatus(ListingStatus newStatus) {
         if(!this.status.canChangeTo(newStatus)) {
             throw new BusinessException(ErrorCode.LISTING_INVALID_STATUS_TRANSITION);
         }
         this.status = newStatus;
+    }
+
+    public void changeTitle(String title) {
+        if (title != null && !title.isBlank())  this.title = title;
+    }
+    public void changeTopic(String topic) {
+        if (topic != null && !topic.isBlank())  this.topic = topic;
+    }
+    public void changePrice(Integer price) {
+        if (price != null) this.price = price;
+    }
+    public void changeDescription(String description) {
+        if (description != null && !description.isBlank())  this.description = description;
+    }
+    public void changePlace(PlaceType placeType, String placeDesc) {
+        if (placeType != null) this.placeType = placeType;
+
+        if (this.placeType == PlaceType.ONLINE) {
+            this.placeDesc = null;
+            return;
+        }
+
+        if (placeDesc != null && !placeDesc.isBlank()) {
+            this.placeDesc = placeDesc;
+        }
     }
 }

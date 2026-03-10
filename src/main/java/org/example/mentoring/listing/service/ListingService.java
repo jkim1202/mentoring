@@ -95,32 +95,8 @@ public class ListingService {
             throw new BusinessException(ErrorCode.LISTING_NOT_EDITABLE);
         }
 
-        if (req.title() != null && !req.title().isBlank()) {
-            listing.setTitle(req.title());
-        }
-        if (req.topic() != null && !req.topic().isBlank()) {
-            listing.setTopic(req.topic());
-        }
-        if (req.price() != null) {
-            listing.setPrice(req.price());
-        }
-        if (req.placeType() != null) {
-            listing.setPlaceType(req.placeType());
-        }
-        if (req.description() != null) {
-            listing.setDescription(req.description());
-        }
+        applyUpdates(listing, req);
 
-        if (req.placeType() != null || req.placeDesc() != null) {
-            PlaceType finalType = req.placeType() != null ? req.placeType() : listing.getPlaceType();
-            String finalDesc = req.placeDesc() != null ? req.placeDesc() : listing.getPlaceDesc();
-
-            if (finalType == PlaceType.ONLINE) {
-                listing.setPlaceDesc(null); // ONLINE이면 장소 설명 제거
-            } else {
-                listing.setPlaceDesc(finalDesc); // OFFLINE이면 placeDesc 사용
-            }
-        }
         return ListingResponseDto.from(listing);
     }
 
@@ -137,7 +113,7 @@ public class ListingService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        listing.setStatus(req.status());
+        listing.updateStatus(req.status());
         return ListingResponseDto.from(listing);
     }
 
@@ -155,5 +131,12 @@ public class ListingService {
             case "PRICE_DESC" -> Sort.by(Sort.Direction.DESC, "price");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+    }
+    private void applyUpdates(Listing listing, ListingUpdateRequestDto req) {
+        listing.changeTitle(req.title());
+        listing.changeTopic(req.topic());
+        listing.changePrice(req.price());
+        listing.changePlace(req.placeType(), req.placeDesc());
+        listing.changeDescription(req.description());
     }
 }

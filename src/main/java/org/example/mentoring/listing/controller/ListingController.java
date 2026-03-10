@@ -12,7 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/listings")
 public class ListingController {
     private final ListingService listingService;
 
@@ -21,7 +21,7 @@ public class ListingController {
         this.listingService = listingService;
     }
 
-    @PostMapping("/listings")
+    @PostMapping
     public ResponseEntity<ListingResponseDto> createListing(
             @Valid @RequestBody ListingCreateRequestDto request,
             @AuthenticationPrincipal MentoringUserDetails userDetails
@@ -30,12 +30,12 @@ public class ListingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
-    @GetMapping("/listings/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<ListingResponseDto> getListing(@PathVariable Long id) {
         return ResponseEntity.ok(listingService.getListing(id));
     }
 
-    @GetMapping("/listings")
+    @GetMapping
     public ResponseEntity<Page<ListingSummaryResponseDto>> getListings(
             @ModelAttribute ListingSearchRequestDto request
     ) {
@@ -43,7 +43,7 @@ public class ListingController {
         return ResponseEntity.ok(result);
     }
 
-    @PatchMapping("/listings/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<ListingResponseDto> updateListing(
             @PathVariable Long id,
             @Valid @RequestBody ListingUpdateRequestDto request,
@@ -53,7 +53,7 @@ public class ListingController {
         return ResponseEntity.ok(result);
     }
 
-    @PatchMapping("/listings/{id}/status")
+    @PatchMapping("/{id}/status")
     public ResponseEntity<ListingResponseDto> updateListingStatus(
             @PathVariable Long id,
             @Valid @RequestBody ListingStatusUpdateRequestDto request,
