@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum ErrorCode {
+    APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "APPLICATION_001", "해당 신청을 찾을 수 없습니다."),
+    APPLICATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "APPLICATION_002", "해당 신청이 이미 존재합니다."),
+
     AUTH_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_001", "로그인 정보가 일치하지 않습니다."),
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_002", "유효하지 않은 토큰입니다."),
     AUTH_EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_003", "만료된 토큰입니다."),
@@ -24,7 +27,11 @@ public enum ErrorCode {
     LISTING_NOT_FOUND(HttpStatus.NOT_FOUND, "LISTING_001", "게시글을 찾을 수 없습니다."),
     LISTING_NOT_EDITABLE(HttpStatus.FORBIDDEN, "LISTING_002", "게시글을 수정할 수 없습니다."),
     LISTING_INVALID_PRICE_RANGE(HttpStatus.BAD_REQUEST, "LISTING_003", "최소 금액은 최대 금액보다 클 수 없습니다."),
-    LISTING_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "LISTING_004", "상태를 변경할 수 없습니다.");
+    LISTING_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "LISTING_004", "상태를 변경할 수 없습니다."),
+
+    SLOT_NOT_FOUND(HttpStatus.NOT_FOUND, "SLOT_001", "슬롯을 찾을 수 없습니다."),
+    SLOT_NOT_BELONG_TO_LISTING(HttpStatus.BAD_REQUEST, "SLOT_002", "슬롯이 등록글에 속하지 않습니다."),
+    SLOT_ALREADY_BOOKED(HttpStatus.CONFLICT, "SLOT_003", "이미 예약된 슬롯입니다.");
 
     private final HttpStatus status;
     private final String code;
