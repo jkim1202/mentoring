@@ -14,6 +14,7 @@ import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.ListingRepository;
 import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
@@ -26,17 +27,20 @@ public class ApplicationService {
     private final UserRepository userRepository;
     private final ListingRepository listingRepository;
     private final SlotRepository slotRepository;
+    private final ReservationService reservationService;
 
     @Autowired
     public ApplicationService(ApplicationRepository applicationRepository,
-                                         UserRepository userRepository,
-                                         ListingRepository listingRepository,
-                                         SlotRepository slotRepository
+                              UserRepository userRepository,
+                              ListingRepository listingRepository,
+                              SlotRepository slotRepository,
+                              ReservationService reservationService
     ) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;
         this.slotRepository = slotRepository;
+        this.reservationService = reservationService;
     }
 
     @Transactional
@@ -70,17 +74,22 @@ public class ApplicationService {
     @Transactional
     public ApplicationStatusResponseDto changeApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
         Application application = applicationRepository.findById(applicationId)
-                .orElseThrow( () -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
         User user = userRepository.findById(userDetails.getId())
-                .orElseThrow( () -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if(!application.getListing().getMentor().getId().equals(user.getId()))
+        if (!application.getListing().getMentor().getId().equals(user.getId()))
             throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
 
         application.changeStatus(applicationStatus);
 
         applicationRepository.save(application);
+
+        // Application ACCEPTED -> Reservation PENDING_PAYMENT
+        if (applicationStatus == ApplicationStatus.ACCEPTED) {
+            reservationService.createReservation(application);
+        }
 
         return new ApplicationStatusResponseDto(applicationId, applicationStatus);
     }
