@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.mentoring.exception.BusinessException;
+import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.user.entity.User;
@@ -51,4 +53,10 @@ public class Application {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    public void changeStatus(ApplicationStatus newStatus) {
+        if (this.status.canChangeTo(newStatus))
+            this.status = newStatus;
+        else throw new BusinessException(ErrorCode.APPLICATION_INVALID_STATUS_TRANSITION);
+    }
 }

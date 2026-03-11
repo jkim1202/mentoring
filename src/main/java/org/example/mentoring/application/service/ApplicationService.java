@@ -3,7 +3,9 @@ package org.example.mentoring.application.service;
 import jakarta.transaction.Transactional;
 import org.example.mentoring.application.dto.ApplicationCreateRequestDto;
 import org.example.mentoring.application.dto.ApplicationCreateResponseDto;
+import org.example.mentoring.application.dto.ApplicationStatusResponseDto;
 import org.example.mentoring.application.entity.Application;
+import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.application.repository.ApplicationRepository;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
@@ -63,5 +65,23 @@ public class ApplicationService {
 
         applicationRepository.save(application);
         return ApplicationCreateResponseDto.from(application);
+    }
+
+    @Transactional
+    public ApplicationStatusResponseDto changeApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow( () -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow( () -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if(!application.getListing().getMentor().getId().equals(user.getId()))
+            throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
+
+        application.changeStatus(applicationStatus);
+
+        applicationRepository.save(application);
+
+        return new ApplicationStatusResponseDto(applicationId, applicationStatus);
     }
 }
