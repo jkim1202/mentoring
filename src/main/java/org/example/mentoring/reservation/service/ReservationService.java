@@ -51,6 +51,7 @@ public class ReservationService {
         if (!reservation.getMentor().getId().equals(loginUserId)
                 && !reservation.getMentee().getId().equals(loginUserId))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
         reservation.changeStatus(reservationStatus);
 
         reservationRepository.save(reservation);
