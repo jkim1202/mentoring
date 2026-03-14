@@ -33,11 +33,11 @@ public class ApplicationController {
 
     @PatchMapping("/{id}/accept")
     public ResponseEntity<ApplicationStatusResponseDto> acceptApplication(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
-        return ResponseEntity.ok(applicationService.changeApplicationStatus(id, userDetails, ApplicationStatus.ACCEPTED));
+        return ResponseEntity.ok(applicationService.updateApplicationStatus(id, userDetails, ApplicationStatus.ACCEPTED));
     }
 
     @PatchMapping("/{id}/reject")
     public ResponseEntity<ApplicationStatusResponseDto> rejectApplication(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
-        return ResponseEntity.ok(applicationService.changeApplicationStatus(id, userDetails, ApplicationStatus.REJECTED));
+        return ResponseEntity.ok(applicationService.updateApplicationStatus(id, userDetails, ApplicationStatus.REJECTED));
     }
 }
