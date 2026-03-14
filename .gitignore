@@ -57,6 +57,7 @@ credentials/
 
 ### Database Dumps / Backups ###
 *.sql
+!src/main/resources/db/migration/*.sql
 *.dump
 *.bak
 
