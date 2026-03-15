@@ -1,5 +1,6 @@
 package org.example.mentoring.reservation.dto;
 
+import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
 import org.example.mentoring.user.entity.User;
@@ -14,9 +15,10 @@ public record ReservationSummaryResponseDto(
         Long listingId,
         String listingTitle,
         Long partnerUserId,
-        String partnerNickname
+        String partnerNickname,
+        SlotStatus slotStatus
         ) {
-    public static ReservationSummaryResponseDto from(Reservation reservation, Long loginUserId) {
+    public static ReservationSummaryResponseDto from(Reservation reservation, Long loginUserId, SlotStatus slotStatus) {
         User partner = reservation.getMentor().getId().equals(loginUserId)
                 ? reservation.getMentee()
                 : reservation.getMentor();
@@ -29,7 +31,8 @@ public record ReservationSummaryResponseDto(
                 reservation.getListing().getId(),
                 reservation.getListing().getTitle(),
                 partner.getId(),
-                partner.getNickname()
+                partner.getNickname(),
+                slotStatus
         );
     }
 }

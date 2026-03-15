@@ -7,7 +7,7 @@ public enum SlotStatus {
     public boolean canChangeTo(SlotStatus newStatus) {
         return switch (this) {
             case OPEN ->  newStatus == BOOKED;
-            default -> false;
+            case BOOKED ->  newStatus == OPEN;
         };
     }
 }

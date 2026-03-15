@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
         name = "reservations",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_reservations_application_id", columnNames = "application_id"),
-                @UniqueConstraint(name = "uk_reservations_slot_id", columnNames = "slot_id")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

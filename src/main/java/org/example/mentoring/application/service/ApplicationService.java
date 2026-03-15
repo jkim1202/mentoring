@@ -1,6 +1,5 @@
 package org.example.mentoring.application.service;
 
-import jakarta.transaction.Transactional;
 import org.example.mentoring.application.dto.ApplicationCreateRequestDto;
 import org.example.mentoring.application.dto.ApplicationCreateResponseDto;
 import org.example.mentoring.application.dto.ApplicationStatusResponseDto;
@@ -20,6 +19,7 @@ import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ApplicationService {
@@ -72,7 +72,7 @@ public class ApplicationService {
     }
 
     @Transactional
-public ApplicationStatusResponseDto updateApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
+    public ApplicationStatusResponseDto updateApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
         Application application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
@@ -86,8 +86,9 @@ public ApplicationStatusResponseDto updateApplicationStatus(Long applicationId, 
 
         applicationRepository.save(application);
 
-        // Application ACCEPTED -> Reservation PENDING_PAYMENT
+        // Application ACCEPTED -> Slot BOOKED, Reservation PENDING_PAYMENT
         if (applicationStatus == ApplicationStatus.ACCEPTED) {
+            // Reservation 생성
             reservationService.createReservation(application);
         }
 
