@@ -21,7 +21,9 @@
 - 같은 멘티가 같은 슬롯에 중복 신청할 수 없다.
 - 슬롯이 해당 등록글에 속하지 않으면 신청할 수 없다.
 - 이미 예약된 슬롯에는 새 신청을 할 수 없다.
-- 신청 수락 시 예약이 생성되며, 하나의 슬롯에는 하나의 예약만 존재한다.
+- 신청 수락 시 예약이 생성되며, 예약 생성과 슬롯 점유는 같은 트랜잭션에서 처리한다.
+- 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서는 같은 슬롯에 중복 예약할 수 없다.
+- 예약이 `CANCELED` 되면 슬롯은 다시 `OPEN`으로 돌아가며, 이후 새 예약 이력을 생성할 수 있다.
 
 ## 기술 스택
 - Java 21
@@ -63,6 +65,7 @@
 ### Reservation
 - 신청 수락 시 예약 생성
 - `PATCH /api/reservations/{id}/status`
+- 예약 상태 변경 응답에 현재 `slotStatus` 포함
 
 ## 상태 전이
 ### ListingStatus
@@ -72,7 +75,7 @@
 
 ### SlotStatus
 - `OPEN -> BOOKED`
-- `BOOKED`는 종단 상태
+- `BOOKED -> OPEN`
 
 ### ApplicationStatus
 - `APPLIED -> ACCEPTED, REJECTED, CANCELED`
@@ -174,19 +177,27 @@ erDiagram
         bigint id PK
         bigint application_id FK, UK
         bigint listing_id FK
-        bigint slot_id FK, UK
+        bigint slot_id FK
         bigint mentor_user_id FK
         bigint mentee_user_id FK
         datetime start_at
         datetime end_at
         enum status
+        bigint active_slot_id UK
     }
 ```
 
 설계 포인트:
 - `Application -> Reservation`은 1:1 흐름이다.
-- `Slot -> Reservation`은 비즈니스상 1:1을 보장하기 위해 `slot_id UNIQUE` 제약을 둔다.
+- 예약 생성 시 `Slot`은 `BOOKED`로 전이되고, 예약 취소 시 다시 `OPEN`으로 돌아간다.
+- `reservations.active_slot_id UNIQUE`로 활성 예약 상태에서만 같은 슬롯 중복 예약을 막는다.
+- 서비스에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 락으로 먼저 검증하고, DB는 최종 무결성을 보장한다.
 - `Reservation`은 `start_at`, `end_at`을 별도로 저장해 슬롯 변경/삭제 이후에도 예약 시각 이력을 보존한다.
+
+## 트러블슈팅 요약
+- 예약 취소 후 슬롯 재사용 정책을 적용하는 과정에서 기존 `reservations.slot_id UNIQUE` 제약이 취소 이력까지 막아 같은 슬롯 재예약을 불가능하게 만드는 문제를 확인했다.
+- 이를 해결하기 위해 `slot_id` 절대 unique를 제거하고, 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서만 값이 생기는 `active_slot_id` generated column + unique 제약으로 변경했다.
+- 서비스 레벨에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 비관적 락으로 사전 검증하고, DB는 `active_slot_id` unique 제약으로 최종 정합성을 보장하도록 역할을 분리했다.
 
 ## 데이터베이스 마이그레이션
 Flyway로 스키마를 버전 관리한다.
@@ -200,6 +211,7 @@ Flyway로 스키마를 버전 관리한다.
 - `V6__rename_availability_slots_to_slots.sql`
 - `V7__create_applications.sql`
 - `V8__create_reservations.sql`
+- `V9__add_active_slot_unique_constraint.sql`
 
 현재 기준 핵심 테이블:
 - `users`
@@ -353,7 +365,8 @@ Content-Type: application/json
   "listingId": 1,
   "listingTitle": "Spring Security 멘토링",
   "partnerUserId": 2,
-  "partnerNickname": "멘티닉네임"
+  "partnerNickname": "멘티닉네임",
+  "slotStatus": "BOOKED"
 }
 ```
 

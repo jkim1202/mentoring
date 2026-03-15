@@ -7,7 +7,7 @@ import io.jsonwebtoken.security.SecurityException;
 import jakarta.annotation.PostConstruct;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -17,24 +17,25 @@ import java.util.function.Function;
 
 @Component
 public class JwtTokenProvider {
-    private static final long ACCESS_VALIDITY_TIME = 1000 * 60 * 15;
-    private static final long REFRESH_VALIDITY_TIME = 1000L * 60 * 60 * 24 * 7;
-    @Value("${JWT_ACCESS_SECRET}")
-    private String accessSecret;
-    @Value("${JWT_REFRESH_SECRET}")
-    private String refreshSecret;
+    private final JwtProperties jwtProperties;
 
     private SecretKey accessKey;
     private SecretKey refreshKey;
+
+    @Autowired
+    public JwtTokenProvider(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
+
     @PostConstruct
     void init() {
-        this.accessKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(accessSecret));
-        this.refreshKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(refreshSecret));
+        this.accessKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
+        this.refreshKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getRefreshSecret()));
     }
 
     public String generateAccessToken(UserDetails userDetails) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + ACCESS_VALIDITY_TIME);
+        Date expiration = new Date(now.getTime() + jwtProperties.getAccessValidityMillis());
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .issuedAt(now)
@@ -44,7 +45,7 @@ public class JwtTokenProvider {
     }
     public String generateRefreshToken(UserDetails userDetails) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + REFRESH_VALIDITY_TIME);
+        Date expiration = new Date(now.getTime() + jwtProperties.getRefreshValidityMillis());
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .issuedAt(now)

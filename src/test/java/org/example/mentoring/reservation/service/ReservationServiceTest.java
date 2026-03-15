@@ -7,6 +7,7 @@ import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
+import org.example.mentoring.listing.repository.SlotRepository;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -29,8 +30,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 public class ReservationServiceTest {
@@ -39,6 +43,9 @@ public class ReservationServiceTest {
 
     @Mock
     private ReservationRepository reservationRepository;
+
+    @Mock
+    private SlotRepository slotRepository;
 
     @Captor
     private ArgumentCaptor<Reservation> reservationCaptor;
@@ -77,6 +84,11 @@ public class ReservationServiceTest {
                 .status(ApplicationStatus.ACCEPTED)
                 .build();
 
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(reservationRepository.existsBySlotIdAndStatusIn(100L,
+                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
+                .willReturn(false);
+
         reservationService.createReservation(application);
 
         then(reservationRepository).should().save(reservationCaptor.capture());
@@ -91,6 +103,147 @@ public class ReservationServiceTest {
         assertThat(savedReservation.getStartAt()).isEqualTo(slot.getStartAt());
         assertThat(savedReservation.getEndAt()).isEqualTo(slot.getEndAt());
         assertThat(savedReservation.getStatus()).isEqualTo(ReservationStatus.PENDING_PAYMENT);
+    }
+
+    @Test
+    @DisplayName("예약 취소 후 재예약 성공")
+    void cancel_then_create_new_reservation_on_reopened_slot_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        ReservationSummaryResponseDto result =
+                reservationService.updateReservationStatus(10000L, ReservationStatus.CANCELED, userDetails);
+
+        assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(result.partnerUserId()).isEqualTo(2L);
+        assertThat(result.partnerNickname()).isEqualTo(mentee.getNickname());
+        assertThat(result.slotStatus()).isEqualTo(SlotStatus.OPEN);
+        then(reservationRepository).should().save(reservation);
+
+        Application newApplication = Application.builder()
+                .id(2000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+
+        // 재예약
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(reservationRepository.existsBySlotIdAndStatusIn(100L,
+                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
+                .willReturn(false);
+
+        reservationService.createReservation(newApplication);
+
+        then(reservationRepository).should(times(2)).save(reservationCaptor.capture());
+
+        Reservation savedReservation = reservationCaptor.getValue();
+
+        assertThat(savedReservation.getApplication()).isEqualTo(newApplication);
+        assertThat(savedReservation.getListing()).isEqualTo(listing);
+        assertThat(savedReservation.getSlot()).isEqualTo(slot);
+        assertThat(savedReservation.getMentor()).isEqualTo(mentor);
+        assertThat(savedReservation.getMentee()).isEqualTo(mentee);
+        assertThat(savedReservation.getStartAt()).isEqualTo(slot.getStartAt());
+        assertThat(savedReservation.getEndAt()).isEqualTo(slot.getEndAt());
+        assertThat(savedReservation.getStatus()).isEqualTo(ReservationStatus.PENDING_PAYMENT);
+    }
+
+    @Test
+    @DisplayName("active 예약이 이미 존재하면 중복 예약 생성 실패")
+    void create_reservation_when_active_reservation_exists_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(reservationRepository.existsBySlotIdAndStatusIn(100L,
+                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> reservationService.createReservation(application))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_ALREADY_EXISTS));
+
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
+        then(reservationRepository).should(never()).save(any(Reservation.class));
     }
 
     @Test

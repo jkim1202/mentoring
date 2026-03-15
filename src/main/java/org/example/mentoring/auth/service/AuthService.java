@@ -1,6 +1,5 @@
 package org.example.mentoring.auth.service;
 
-import jakarta.transaction.Transactional;
 import org.example.mentoring.auth.dto.*;
 import org.example.mentoring.user.entity.Role;
 import org.example.mentoring.user.entity.User;
@@ -17,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 

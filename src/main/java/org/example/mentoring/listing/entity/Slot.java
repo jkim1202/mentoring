@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.mentoring.exception.BusinessException;
+import org.example.mentoring.exception.ErrorCode;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -37,11 +39,26 @@ public class Slot {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SlotStatus status; // OPEN, BLOCKED, BOOKED
+    private SlotStatus status; // OPEN, BOOKED
 
     @CreatedDate
     private LocalDateTime createdAt;
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    public void book(){
+        if(this.status == SlotStatus.OPEN) {
+            this.status = SlotStatus.BOOKED;
+        } else  {
+            throw new BusinessException(ErrorCode.SLOT_INVALID_STATUS_TRANSITION);
+        }
+    }
+    public void reopen(){
+        if(this.status == SlotStatus.BOOKED) {
+            this.status = SlotStatus.OPEN;
+        } else  {
+            throw new BusinessException(ErrorCode.SLOT_INVALID_STATUS_TRANSITION);
+        }
+    }
 }

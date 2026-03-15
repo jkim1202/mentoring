@@ -34,6 +34,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 
 @ExtendWith(MockitoExtension.class)
 public class ApplicationServiceTest {
@@ -214,6 +215,51 @@ public class ApplicationServiceTest {
                 applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED);
 
         assertThat(result.status()).isEqualTo(ApplicationStatus.ACCEPTED);
+        then(reservationService).should().createReservation(application);
+    }
+
+    @Test
+    @DisplayName("동일 슬롯 동시 수락 상황이면 예약 생성 실패가 전파된다")
+    void update_application_status_accept_same_slot_concurrent_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(100L)
+                .listing(listing)
+                .slot(slot)
+                .status(ApplicationStatus.APPLIED)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+        willThrow(new BusinessException(ErrorCode.RESERVATION_ALREADY_EXISTS))
+                .given(reservationService)
+                .createReservation(application);
+
+        assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_ALREADY_EXISTS));
+
         then(reservationService).should().createReservation(application);
     }
 

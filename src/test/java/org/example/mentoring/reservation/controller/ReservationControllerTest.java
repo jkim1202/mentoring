@@ -3,6 +3,7 @@ package org.example.mentoring.reservation.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
+import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.reservation.dto.ReservationStatusUpdateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -66,6 +67,7 @@ public class ReservationControllerTest {
                 "게시글 1 제목",
                 1L,
                 "멘토 닉네임 1"
+                , SlotStatus.BOOKED
         );
 
         given(reservationService.updateReservationStatus(any(), any(), any())).willReturn(res);
@@ -77,7 +79,8 @@ public class ReservationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservationId").value(1))
                 .andExpect(jsonPath("$.reservationStatus").value("CONFIRMED"))
-                .andExpect(jsonPath("$.listingTitle").value("게시글 1 제목"));
+                .andExpect(jsonPath("$.listingTitle").value("게시글 1 제목"))
+                .andExpect(jsonPath("$.slotStatus").value("BOOKED"));
     }
 
     @Test

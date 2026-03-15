@@ -1,11 +1,12 @@
 package org.example.mentoring.reservation.service;
 
-import jakarta.transaction.Transactional;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
+import org.example.mentoring.listing.entity.SlotStatus;
+import org.example.mentoring.listing.repository.SlotRepository;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -13,20 +14,39 @@ import org.example.mentoring.reservation.repository.ReservationRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
-public class    ReservationService {
+public class ReservationService {
     private final ReservationRepository reservationRepository;
+    private final SlotRepository slotRepository;
 
     @Autowired
-    public ReservationService(ReservationRepository reservationRepository) {
+    public ReservationService(ReservationRepository reservationRepository, SlotRepository slotRepository) {
         this.reservationRepository = reservationRepository;
+        this.slotRepository = slotRepository;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void createReservation(Application application) {
-        Slot slot = application.getSlot();
+        //
+        Slot slot = slotRepository.findByIdForUpdate(application.getSlot().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+
         Listing listing = application.getListing();
+
+        // 현재 active인 slot이 이미 존재하는지 확인
+        if (reservationRepository.existsBySlotIdAndStatusIn(slot.getId(),
+                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)
+        )) {
+            throw new BusinessException(ErrorCode.RESERVATION_ALREADY_EXISTS);
+        }
+
+        // slot 상태 변경 -> BOOKED
+        slot.book();
 
         Reservation reservation = Reservation.builder()
                 .mentee(application.getMentee())
@@ -52,10 +72,12 @@ public class    ReservationService {
                 && !reservation.getMentee().getId().equals(loginUserId))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
+        if (reservationStatus == ReservationStatus.CANCELED)
+            reservation.getSlot().reopen();
         reservation.changeStatus(reservationStatus);
 
         reservationRepository.save(reservation);
 
-        return ReservationSummaryResponseDto.from(reservation, userDetails.getId());
+        return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
     }
 }
