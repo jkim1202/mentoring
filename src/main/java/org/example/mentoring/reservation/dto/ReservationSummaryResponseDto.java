@@ -35,4 +35,21 @@ public record ReservationSummaryResponseDto(
                 slotStatus
         );
     }
+    public static ReservationSummaryResponseDto from(Reservation reservation, Long loginUserId) {
+        User partner = reservation.getMentor().getId().equals(loginUserId)
+                ? reservation.getMentee()
+                : reservation.getMentor();
+
+        return new ReservationSummaryResponseDto(
+                reservation.getId(),
+                reservation.getStatus(),
+                reservation.getStartAt(),
+                reservation.getEndAt(),
+                reservation.getListing().getId(),
+                reservation.getListing().getTitle(),
+                partner.getId(),
+                partner.getNickname(),
+                reservation.getSlot().getStatus()
+        );
+    }
 }

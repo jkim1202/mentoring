@@ -10,13 +10,16 @@ import org.example.mentoring.listing.repository.SlotRepository;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
+import org.example.mentoring.reservation.entity.ReservationView;
 import org.example.mentoring.reservation.repository.ReservationRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -80,4 +83,23 @@ public class ReservationService {
 
         return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
     }
+
+    public List<ReservationSummaryResponseDto> getReservations(ReservationView view, String sort, MentoringUserDetails userDetails) {
+        Long loginUserId = userDetails.getId();
+        List<Reservation> reservations = switch (view) {
+            case MENTEE -> switch (sort) {
+                case "ASC" -> reservationRepository.findAllByMentee_IdOrderByCreatedAt(loginUserId);
+                default -> reservationRepository.findAllByMentee_IdOrderByCreatedAtDesc(loginUserId);
+            };
+            case MENTOR -> switch (sort) {
+                case "ASC" -> reservationRepository.findAllByMentor_IdOrderByCreatedAt(loginUserId);
+                default -> reservationRepository.findAllByMentor_IdOrderByCreatedAtDesc(loginUserId);
+            };
+        };
+
+        return reservations.stream()
+                .map(reservation -> ReservationSummaryResponseDto.from(reservation, loginUserId))
+                .toList();
+    }
+
 }
