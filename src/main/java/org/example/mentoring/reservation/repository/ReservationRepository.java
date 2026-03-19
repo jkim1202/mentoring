@@ -6,16 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
-import java.util.List;
 
 @Repository
-public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+public interface ReservationRepository extends JpaRepository<Reservation, Long>, ReservationRepositoryCustom {
     boolean existsBySlotIdAndStatusIn(Long slotId, Collection<ReservationStatus> reservationStatuses);
-    List<Reservation> findAllByMentee_IdOrderByCreatedAt(Long menteeId);
-
-    List<Reservation> findAllByMentee_IdOrderByCreatedAtDesc(Long menteeId);
-
-    List<Reservation> findAllByMentor_IdOrderByCreatedAt(Long mentorId);
-
-    List<Reservation> findAllByMentor_IdOrderByCreatedAtDesc(Long mentorId);
 }

@@ -117,6 +117,37 @@ public class ReservationControllerTest {
                 .andExpect(jsonPath("$.code").value("RESERVATION_002"));
     }
 
+    @Test
+    @DisplayName("예약 전체 조회 성공")
+    void get_reservations_success() throws Exception {
+        ReservationStatusUpdateRequestDto req = new ReservationStatusUpdateRequestDto(
+                ReservationStatus.CONFIRMED
+        );
+        ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(
+                1L,
+                ReservationStatus.CONFIRMED,
+                LocalDateTime.MIN,
+                LocalDateTime.MAX,
+                1L,
+                "게시글 1 제목",
+                1L,
+                "멘토 닉네임 1"
+                , SlotStatus.BOOKED
+        );
+
+        given(reservationService.updateReservationStatus(any(), any(), any())).willReturn(res);
+
+        mockMvc.perform(patch("/api/reservations/{id}/status", 1L)
+                        .with(authentication(authOf(10L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservationId").value(1))
+                .andExpect(jsonPath("$.reservationStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.listingTitle").value("게시글 1 제목"))
+                .andExpect(jsonPath("$.slotStatus").value("BOOKED"));
+    }
+
     private UsernamePasswordAuthenticationToken authOf(Long userId) {
         MentoringUserDetails principal = new MentoringUserDetails(
                 userId,
