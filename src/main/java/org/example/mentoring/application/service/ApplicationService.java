@@ -62,7 +62,7 @@ public class ApplicationService {
         if (slot.getStatus() == SlotStatus.BOOKED) throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
 
         // 중복 신청 방지
-        if (applicationRepository.existsByMenteeIdAndSlotId(mentee.getId(), req.slotId()))
+        if (applicationRepository.existsByMenteeIdAndSlotIdAndStatus(mentee.getId(), req.slotId(), ApplicationStatus.APPLIED))
             throw new BusinessException(ErrorCode.APPLICATION_ALREADY_EXISTS);
 
         Application application = Application.builder().mentee(mentee).listing(listing).slot(slot).message(req.message()).build();
@@ -76,10 +76,12 @@ public class ApplicationService {
         Application application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
-        User user = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Long userId = userDetails.getId();
 
-        if (!application.getListing().getMentor().getId().equals(user.getId()))
+        if(!userRepository.existsById(userId))
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+
+        if (!application.getListing().getMentor().getId().equals(userId))
             throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
 
         application.changeStatus(applicationStatus);
