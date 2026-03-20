@@ -1,6 +1,7 @@
 package org.example.mentoring.reservation.controller;
 
 import jakarta.validation.Valid;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationStatusUpdateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
@@ -25,6 +26,13 @@ public class ReservationController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ReservationSummaryResponseDto> updateStatus(@Valid @RequestBody ReservationStatusUpdateRequestDto reservationStatusUpdateRequestDto, @PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
         return ResponseEntity.ok(reservationService.updateReservationStatus(id, reservationStatusUpdateRequestDto.status(), userDetails));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReservationDetailResponseDto> getReservation(
+            @PathVariable Long id,
+            @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(reservationService.getReservation(id, userDetails));
     }
 
     @GetMapping

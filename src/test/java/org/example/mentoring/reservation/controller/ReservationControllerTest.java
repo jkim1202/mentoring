@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.SlotStatus;
+import org.example.mentoring.listing.entity.PlaceType;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationStatusUpdateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
@@ -127,6 +129,42 @@ public class ReservationControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("RESERVATION_002"));
+    }
+
+    @Test
+    @DisplayName("예약 상세 조회 성공")
+    void get_reservation_success() throws Exception {
+        ReservationDetailResponseDto res = new ReservationDetailResponseDto(
+                1L,
+                ReservationStatus.CONFIRMED,
+                LocalDateTime.of(2026, 3, 15, 10, 0),
+                LocalDateTime.of(2026, 3, 15, 11, 0),
+                10L,
+                "Spring 멘토링",
+                "Spring Boot",
+                50000,
+                PlaceType.OFFLINE,
+                "강남역",
+                2L,
+                "멘티 1",
+                SlotStatus.BOOKED
+        );
+
+        given(reservationService.getReservation(any(), any())).willReturn(res);
+
+        mockMvc.perform(get("/api/reservations/{id}", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservationId").value(1))
+                .andExpect(jsonPath("$.reservationStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.listingTitle").value("Spring 멘토링"))
+                .andExpect(jsonPath("$.listingTopic").value("Spring Boot"))
+                .andExpect(jsonPath("$.listingPrice").value(50000))
+                .andExpect(jsonPath("$.placeType").value("OFFLINE"))
+                .andExpect(jsonPath("$.placeDesc").value("강남역"))
+                .andExpect(jsonPath("$.partnerUserId").value(2))
+                .andExpect(jsonPath("$.partnerNickname").value("멘티 1"))
+                .andExpect(jsonPath("$.slotStatus").value("BOOKED"));
     }
 
     @Test

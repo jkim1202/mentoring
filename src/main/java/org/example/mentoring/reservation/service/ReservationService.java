@@ -5,6 +5,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.listing.repository.SlotRepository;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
@@ -88,6 +89,21 @@ public class ReservationService {
         return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
     }
 
+    @Transactional(readOnly = true)
+    public ReservationDetailResponseDto getReservation(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = reservationRepository.findDetailById(reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        Long loginUserId = userDetails.getId();
+        if (!reservation.getMentor().getId().equals(loginUserId)
+                && !reservation.getMentee().getId().equals(loginUserId)) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        return ReservationDetailResponseDto.from(reservation, loginUserId);
+    }
+
+    @Transactional(readOnly = true)
     public Page<ReservationSummaryResponseDto> getReservations(ReservationSearchRequestDto req, MentoringUserDetails userDetails) {
         Long  loginUserId = userDetails.getId();
 

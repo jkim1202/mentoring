@@ -64,10 +64,11 @@
 
 ### Reservation
 - 신청 수락 시 예약 생성
+- `GET /api/reservations/{id}`
 - `PATCH /api/reservations/{id}/status`
 - `GET /api/reservations`
 - 예약 상태 변경 응답에 현재 `slotStatus` 포함
-- 예약 목록 조회는 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
+- 예약은 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
 
 ## 상태 전이
 ### ListingStatus
