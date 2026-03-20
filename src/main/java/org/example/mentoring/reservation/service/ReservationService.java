@@ -40,7 +40,7 @@ public class ReservationService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void createReservation(Application application) {
-        //
+        // slot 락 조회
         Slot slot = slotRepository.findByIdForUpdate(application.getSlot().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
 

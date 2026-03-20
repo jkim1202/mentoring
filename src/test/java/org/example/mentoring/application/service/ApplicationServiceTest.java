@@ -32,9 +32,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ApplicationServiceTest {
@@ -86,7 +84,12 @@ public class ApplicationServiceTest {
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
         given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
-        given(applicationRepository.existsByMenteeIdAndSlotId(2L, 100L)).willReturn(false);
+        given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
+                2L,
+                100L,
+                ApplicationStatus.APPLIED
+        ))
+                .willReturn(false);
         given(applicationRepository.save(any(Application.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -131,7 +134,12 @@ public class ApplicationServiceTest {
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
         given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
-        given(applicationRepository.existsByMenteeIdAndSlotId(2L, 100L)).willReturn(true);
+        given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
+                2L,
+                100L,
+                ApplicationStatus.APPLIED
+        ))
+                .willReturn(true);
 
         assertThatThrownBy(() -> applicationService.createApplication(req, userDetails))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
@@ -209,7 +217,7 @@ public class ApplicationServiceTest {
         );
 
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
-        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+        given(userRepository.existsById(1L)).willReturn(true);
 
         ApplicationStatusResponseDto result =
                 applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED);
@@ -251,7 +259,7 @@ public class ApplicationServiceTest {
         );
 
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
-        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+        given(userRepository.existsById(1L)).willReturn(true);
         willThrow(new BusinessException(ErrorCode.RESERVATION_ALREADY_EXISTS))
                 .given(reservationService)
                 .createReservation(application);
@@ -287,7 +295,7 @@ public class ApplicationServiceTest {
         );
 
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
-        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+        given(userRepository.existsById(1L)).willReturn(true);
 
         ApplicationStatusResponseDto result =
                 applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.REJECTED);
@@ -366,7 +374,7 @@ public class ApplicationServiceTest {
                 2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(userRepository.findById(2L)).willReturn(Optional.of(otherUser));
+        given(userRepository.existsById(2L)).willReturn(true);
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
@@ -397,7 +405,7 @@ public class ApplicationServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+        given(userRepository.existsById(1L)).willReturn(true);
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
