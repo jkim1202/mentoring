@@ -124,7 +124,7 @@ erDiagram
     LISTINGS ||--o{ RESERVATIONS : contains
 
     SLOTS ||--o{ APPLICATIONS : targets
-    SLOTS ||--|| RESERVATIONS : books
+    SLOTS ||--o{ RESERVATIONS : booked_history
 
     APPLICATIONS ||--|| RESERVATIONS : creates
 
@@ -206,8 +206,9 @@ erDiagram
 - 예약 목록 탭은 아래 관점으로 조회한다.
   - `view=MENTOR`: 내가 멘토로 참여한 일정
   - `view=MENTEE`: 내가 멘티로 참여한 일정
-- 메인 필터 기준은 아래 두 가지로 둔다.
-  - `UPCOMING`: 남은 수업(`PENDING_PAYMENT`, `CONFIRMED`)
+- 메인 필터 기준은 아래 세 가지로 둔다.
+  - `PENDING`: 결제/확정 대기 중인 일정(`PENDING_PAYMENT`)
+  - `UPCOMING`: 진행 예정인 일정(`CONFIRMED`)
   - `COMPLETED`: 완료된 수업(`COMPLETED`)
 - `CANCELED`는 메인 탭에 섞지 않고, 별도 탭/필터 후보로 분리한다.
 - 기본 정렬 기준은 아래 두 가지를 우선으로 본다.
