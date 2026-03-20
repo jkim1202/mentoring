@@ -5,14 +5,22 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
-import org.example.mentoring.listing.entity.SlotStatus;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
 import org.example.mentoring.reservation.repository.ReservationRepository;
+import org.example.mentoring.reservation.type.ReservationFilter;
+import org.example.mentoring.reservation.type.ReservationSort;
+import org.example.mentoring.reservation.type.ReservationView;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,4 +88,47 @@ public class ReservationService {
 
         return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
     }
+
+    @Transactional(readOnly = true)
+    public ReservationDetailResponseDto getReservation(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = reservationRepository.findDetailById(reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        Long loginUserId = userDetails.getId();
+        if (!reservation.getMentor().getId().equals(loginUserId)
+                && !reservation.getMentee().getId().equals(loginUserId)) {
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        return ReservationDetailResponseDto.from(reservation, loginUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReservationSummaryResponseDto> getReservations(ReservationSearchRequestDto req, MentoringUserDetails userDetails) {
+        Long  loginUserId = userDetails.getId();
+
+        int page =  req.page() == null ? 0 : req.page();
+        int size = req.size() == null ? 10 : req.size();
+        ReservationView view = req.view() == null ? ReservationView.MENTEE : req.view();
+        ReservationSort sort = req.sort() == null ? ReservationSort.LATEST : req.sort();
+        ReservationFilter filter = req.filter() == null ? ReservationFilter.UPCOMING : req.filter();
+
+        Pageable pageable = PageRequest.of(page, size, toSort(sort));
+
+        return switch (view){
+            case MENTOR -> reservationRepository.searchByMentorId(filter, pageable, loginUserId)
+                    .map(res -> ReservationSummaryResponseDto.from(res, userDetails.getId(), res.getSlot().getStatus()));
+            case MENTEE -> reservationRepository.searchByMenteeId(filter, pageable, loginUserId)
+                    .map(res -> ReservationSummaryResponseDto.from(res, userDetails.getId(), res.getSlot().getStatus()));
+        };
+    }
+    private Sort toSort(ReservationSort sort) {
+        return switch (sort) {
+            case SOONEST -> Sort.by(
+                    Sort.Order.asc("startAt")
+            );
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
+    }
+
 }

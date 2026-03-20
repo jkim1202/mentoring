@@ -5,13 +5,19 @@ import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
+import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
+import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
 import org.example.mentoring.reservation.repository.ReservationRepository;
+import org.example.mentoring.reservation.type.ReservationFilter;
+import org.example.mentoring.reservation.type.ReservationSort;
+import org.example.mentoring.reservation.type.ReservationView;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.entity.UserStatus;
@@ -23,6 +29,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -197,6 +207,246 @@ public class ReservationServiceTest {
         assertThat(savedReservation.getStartAt()).isEqualTo(slot.getStartAt());
         assertThat(savedReservation.getEndAt()).isEqualTo(slot.getEndAt());
         assertThat(savedReservation.getStatus()).isEqualTo(ReservationStatus.PENDING_PAYMENT);
+    }
+
+    @Test
+    @DisplayName("예약 전체 조회 성공")
+    void get_reservations_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .title("Spring 멘토링")
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
+                .status(ReservationStatus.CONFIRMED)
+                .build();
+
+        ReservationSearchRequestDto req = new ReservationSearchRequestDto(
+                0,
+                10,
+                ReservationView.MENTEE,
+                ReservationSort.LATEST,
+                ReservationFilter.UPCOMING
+        );
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L,
+                "mentee@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
+
+        Page<Reservation> reservationPage = new PageImpl<>(
+                List.of(reservation),
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                1
+        );
+
+        given(reservationRepository.searchByMenteeId(
+                ReservationFilter.UPCOMING,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2L
+        )).willReturn(reservationPage);
+
+        Page<ReservationSummaryResponseDto> result = reservationService.getReservations(req, userDetails);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).reservationId()).isEqualTo(10000L);
+        assertThat(result.getContent().get(0).reservationStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        assertThat(result.getContent().get(0).listingId()).isEqualTo(10L);
+        assertThat(result.getContent().get(0).listingTitle()).isEqualTo("Spring 멘토링");
+        assertThat(result.getContent().get(0).partnerUserId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).partnerNickname()).isEqualTo("멘토닉네임");
+        assertThat(result.getContent().get(0).slotStatus()).isEqualTo(SlotStatus.BOOKED);
+
+        then(reservationRepository).should().searchByMenteeId(
+                ReservationFilter.UPCOMING,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2L
+        );
+    }
+
+    @Test
+    @DisplayName("예약 상세 조회 성공")
+    void get_reservation_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring Boot")
+                .price(50000)
+                .placeType(PlaceType.OFFLINE)
+                .placeDesc("강남역")
+                .description("설명")
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
+                .status(ReservationStatus.CONFIRMED)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L,
+                "mentee@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
+
+        given(reservationRepository.findDetailById(10000L)).willReturn(Optional.of(reservation));
+
+        ReservationDetailResponseDto result = reservationService.getReservation(10000L, userDetails);
+
+        assertThat(result.reservationId()).isEqualTo(10000L);
+        assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        assertThat(result.listingId()).isEqualTo(10L);
+        assertThat(result.listingTitle()).isEqualTo("Spring 멘토링");
+        assertThat(result.listingTopic()).isEqualTo("Spring Boot");
+        assertThat(result.listingPrice()).isEqualTo(50000);
+        assertThat(result.placeType()).isEqualTo(PlaceType.OFFLINE);
+        assertThat(result.placeDesc()).isEqualTo("강남역");
+        assertThat(result.partnerUserId()).isEqualTo(1L);
+        assertThat(result.partnerNickname()).isEqualTo("멘토닉네임");
+        assertThat(result.slotStatus()).isEqualTo(SlotStatus.BOOKED);
+    }
+
+    @Test
+    @DisplayName("예약 당사자가 아니면 상세 조회 실패")
+    void get_reservation_forbidden_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring Boot")
+                .price(50000)
+                .placeType(PlaceType.ONLINE)
+                .description("설명")
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
+                .status(ReservationStatus.CONFIRMED)
+                .build();
+
+        MentoringUserDetails otherUser = new MentoringUserDetails(
+                3L,
+                "other@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
+
+        given(reservationRepository.findDetailById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.getReservation(10000L, otherUser))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
     }
 
     @Test

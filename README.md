@@ -64,8 +64,11 @@
 
 ### Reservation
 - 신청 수락 시 예약 생성
+- `GET /api/reservations/{id}`
 - `PATCH /api/reservations/{id}/status`
+- `GET /api/reservations`
 - 예약 상태 변경 응답에 현재 `slotStatus` 포함
+- 예약은 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
 
 ## 상태 전이
 ### ListingStatus
@@ -122,7 +125,7 @@ erDiagram
     LISTINGS ||--o{ RESERVATIONS : contains
 
     SLOTS ||--o{ APPLICATIONS : targets
-    SLOTS ||--|| RESERVATIONS : books
+    SLOTS ||--o{ RESERVATIONS : booked_history
 
     APPLICATIONS ||--|| RESERVATIONS : creates
 
@@ -198,6 +201,20 @@ erDiagram
 - 예약 취소 후 슬롯 재사용 정책을 적용하는 과정에서 기존 `reservations.slot_id UNIQUE` 제약이 취소 이력까지 막아 같은 슬롯 재예약을 불가능하게 만드는 문제를 확인했다.
 - 이를 해결하기 위해 `slot_id` 절대 unique를 제거하고, 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서만 값이 생기는 `active_slot_id` generated column + unique 제약으로 변경했다.
 - 서비스 레벨에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 비관적 락으로 사전 검증하고, DB는 `active_slot_id` unique 제약으로 최종 정합성을 보장하도록 역할을 분리했다.
+
+## 예약 조회 정책
+- 현재 `Reservation`은 반복 수업 패키지가 아니라 **시간/장소가 확정된 1회성 멘토링 일정**으로 본다.
+- 예약 목록 탭은 아래 관점으로 조회한다.
+  - `view=MENTOR`: 내가 멘토로 참여한 일정
+  - `view=MENTEE`: 내가 멘티로 참여한 일정
+- 메인 필터 기준은 아래 세 가지로 둔다.
+  - `PENDING`: 결제/확정 대기 중인 일정(`PENDING_PAYMENT`)
+  - `UPCOMING`: 진행 예정인 일정(`CONFIRMED`)
+  - `COMPLETED`: 완료된 수업(`COMPLETED`)
+- `CANCELED`는 메인 탭에 섞지 않고, 별도 탭/필터 후보로 분리한다.
+- 기본 정렬 기준은 아래 두 가지를 우선으로 본다.
+  - `SOONEST`: `startAt ASC`
+  - `LATEST`: `createdAt DESC`
 
 ## 데이터베이스 마이그레이션
 Flyway로 스키마를 버전 관리한다.
