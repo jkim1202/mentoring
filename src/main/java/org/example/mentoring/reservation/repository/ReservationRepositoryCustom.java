@@ -1,6 +1,5 @@
 package org.example.mentoring.reservation.repository;
 
-import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.type.ReservationFilter;
 import org.springframework.data.domain.Page;

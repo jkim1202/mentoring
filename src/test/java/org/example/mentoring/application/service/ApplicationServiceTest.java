@@ -2,13 +2,20 @@ package org.example.mentoring.application.service;
 
 import org.example.mentoring.application.dto.ApplicationCreateRequestDto;
 import org.example.mentoring.application.dto.ApplicationCreateResponseDto;
+import org.example.mentoring.application.dto.ApplicationDetailResponseDto;
+import org.example.mentoring.application.dto.ApplicationSearchRequestDto;
 import org.example.mentoring.application.dto.ApplicationStatusResponseDto;
+import org.example.mentoring.application.dto.ApplicationSummaryResponseDto;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.application.repository.ApplicationRepository;
+import org.example.mentoring.application.type.ApplicationFilter;
+import org.example.mentoring.application.type.ApplicationSort;
+import org.example.mentoring.application.type.ApplicationView;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
+import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.ListingRepository;
@@ -24,6 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -411,5 +422,193 @@ public class ApplicationServiceTest {
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.APPLICATION_INVALID_STATUS_TRANSITION));
+    }
+
+    @Test
+    @DisplayName("신청 상세 조회 성공")
+    void get_application_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring Boot")
+                .price(50000)
+                .placeType(PlaceType.OFFLINE)
+                .placeDesc("강남역")
+                .description("설명")
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .message("신청 메시지")
+                .status(ApplicationStatus.APPLIED)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(applicationRepository.findDetailById(1000L)).willReturn(Optional.of(application));
+
+        ApplicationDetailResponseDto result = applicationService.getApplication(1000L, userDetails);
+
+        assertThat(result.applicationId()).isEqualTo(1000L);
+        assertThat(result.applicationStatus()).isEqualTo(ApplicationStatus.APPLIED);
+        assertThat(result.message()).isEqualTo("신청 메시지");
+        assertThat(result.listingId()).isEqualTo(10L);
+        assertThat(result.listingTitle()).isEqualTo("Spring 멘토링");
+        assertThat(result.slotId()).isEqualTo(100L);
+        assertThat(result.partnerUserId()).isEqualTo(1L);
+        assertThat(result.partnerNickname()).isEqualTo("멘토닉네임");
+    }
+
+    @Test
+    @DisplayName("신청 상세 조회 권한 실패")
+    void get_application_forbidden_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring Boot")
+                .price(50000)
+                .placeType(PlaceType.ONLINE)
+                .description("설명")
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.APPLIED)
+                .build();
+
+        MentoringUserDetails otherUser = new MentoringUserDetails(
+                3L, "other@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(applicationRepository.findDetailById(1000L)).willReturn(Optional.of(application));
+
+        assertThatThrownBy(() -> applicationService.getApplication(1000L, otherUser))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("신청 목록 조회 성공")
+    void get_applications_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.APPLIED)
+                .build();
+
+        ApplicationSearchRequestDto req = new ApplicationSearchRequestDto(
+                0,
+                10,
+                ApplicationView.MENTEE,
+                ApplicationSort.LATEST,
+                ApplicationFilter.PENDING
+        );
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        Page<Application> applicationPage = new PageImpl<>(
+                List.of(application),
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                1
+        );
+
+        given(applicationRepository.searchByMenteeId(
+                ApplicationFilter.PENDING,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2L
+        )).willReturn(applicationPage);
+
+        Page<ApplicationSummaryResponseDto> result = applicationService.getApplications(req, userDetails);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).applicationId()).isEqualTo(1000L);
+        assertThat(result.getContent().get(0).applicationStatus()).isEqualTo(ApplicationStatus.APPLIED);
+        assertThat(result.getContent().get(0).listingTitle()).isEqualTo("Spring 멘토링");
+        assertThat(result.getContent().get(0).partnerUserId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).partnerNickname()).isEqualTo("멘토닉네임");
+
+        then(applicationRepository).should().searchByMenteeId(
+                ApplicationFilter.PENDING,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2L
+        );
     }
 }

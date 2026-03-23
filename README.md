@@ -59,6 +59,8 @@
 
 ### Application
 - `POST /api/applications`
+- `GET /api/applications/{id}`
+- `GET /api/applications`
 - `PATCH /api/applications/{id}/accept`
 - `PATCH /api/applications/{id}/reject`
 
@@ -442,9 +444,7 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
 - `/swagger-ui/index.html`
 
 ## 다음 작업
-- README 보강: ERD 추가
 - Reservation 통합 테스트 보강
-- Application / Reservation 조회 API 추가 검토
 - 결제 및 취소 정책 구체화
 - 리뷰 도메인 구현
 - 채팅은 Reservation 기반 1:1 REST 메시지 기능부터 구현하고, 실시간 WebSocket/STOMP는 후속 확장으로 분리
