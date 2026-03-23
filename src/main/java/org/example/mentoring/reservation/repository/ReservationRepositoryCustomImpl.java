@@ -1,5 +1,6 @@
 package org.example.mentoring.reservation.repository;
 
+import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -24,36 +25,24 @@ public class ReservationRepositoryCustomImpl implements ReservationRepositoryCus
 
     @Override
     public Page<Reservation> searchByMentorId(ReservationFilter filter, Pageable pageable, Long mentorId){
-        List<Reservation> content = jpaQueryFactory
-                .select(QReservation.reservation)
-                .from(QReservation.reservation)
-                .where(
-                        mentorIdEq(mentorId),
-                        statusEq(filter)
-                )
-                .orderBy(getOrderSpecifiers(pageable))
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .fetch();
-
-        JPAQuery<Long> countQuery = jpaQueryFactory
-                .select(QReservation.reservation.count())
-                .from(QReservation.reservation)
-                .where(
-                        mentorIdEq(mentorId),
-                        statusEq(filter)
-                );
-
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+        return searchReservations(mentorIdEq(mentorId), filter, pageable);
     }
 
     @Override
     public Page<Reservation> searchByMenteeId(ReservationFilter filter, Pageable pageable, Long menteeId){
+        return searchReservations(menteeIdEq(menteeId), filter, pageable);
+    }
+
+    private Page<Reservation> searchReservations(
+            BooleanExpression participantCondition,
+            ReservationFilter filter,
+            Pageable pageable
+    ) {
         List<Reservation> content = jpaQueryFactory
                 .select(QReservation.reservation)
                 .from(QReservation.reservation)
                 .where(
-                        menteeIdEq(menteeId),
+                        participantCondition,
                         statusEq(filter)
                 )
                 .orderBy(getOrderSpecifiers(pageable))
@@ -65,7 +54,7 @@ public class ReservationRepositoryCustomImpl implements ReservationRepositoryCus
                 .select(QReservation.reservation.count())
                 .from(QReservation.reservation)
                 .where(
-                        menteeIdEq(menteeId),
+                        participantCondition,
                         statusEq(filter)
                 );
 
@@ -78,15 +67,14 @@ public class ReservationRepositoryCustomImpl implements ReservationRepositoryCus
                 .toArray(OrderSpecifier[]::new);
     }
     private OrderSpecifier<?> toOrderSpecifier(Sort.Order sortOrder) {
-        com.querydsl.core.types.Order direction =
-                sortOrder.isAscending()
-                        ? com.querydsl.core.types.Order.ASC
-                        : com.querydsl.core.types.Order.DESC;
+        Order direction = sortOrder.isAscending()
+                        ? Order.ASC
+                        : Order.DESC;
 
         return switch (sortOrder.getProperty()) {
             case "createdAt" -> new OrderSpecifier<>(direction, QReservation.reservation.createdAt);
             case "startAt" -> new OrderSpecifier<>(direction, QReservation.reservation.startAt);
-            default -> new OrderSpecifier<>(com.querydsl.core.types.Order.DESC, QReservation.reservation.createdAt);
+            default -> new OrderSpecifier<>(Order.DESC, QReservation.reservation.createdAt);
         };
     }
     private BooleanExpression menteeIdEq(Long menteeId) {
