@@ -50,7 +50,7 @@ public class ReservationService {
         if (reservationRepository.existsBySlotIdAndStatusIn(slot.getId(),
                 List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)
         )) {
-            throw new BusinessException(ErrorCode.RESERVATION_ALREADY_EXISTS);
+            throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
         }
 
         // slot 상태 변경 -> BOOKED

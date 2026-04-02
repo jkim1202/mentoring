@@ -11,6 +11,7 @@ import java.util.Optional;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long>, ReservationRepositoryCustom {
+    Optional<Reservation> findByApplicationId(Long applicationId);
     boolean existsBySlotIdAndStatusIn(Long slotId, Collection<ReservationStatus> reservationStatuses);
 
     @Query("""

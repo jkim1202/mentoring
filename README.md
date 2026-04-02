@@ -445,6 +445,14 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
 
 ## 다음 작업
 - Reservation 통합 테스트 보강
+  - 동일 슬롯 동시 수락 경쟁 상황
+  - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
 - 결제 및 취소 정책 구체화
 - 리뷰 도메인 구현
 - 채팅은 Reservation 기반 1:1 REST 메시지 기능부터 구현하고, 실시간 WebSocket/STOMP는 후속 확장으로 분리
+
+## 통합 테스트 진행 상태
+- `Application ACCEPTED -> Reservation 생성 -> Slot BOOKED` 검증 완료
+- 예약 취소 시 `Reservation CANCELED -> Slot OPEN` 검증 완료
+- 취소 후 같은 슬롯 재예약 가능 검증 완료
+- 활성 예약이 있는 동일 슬롯 중복 예약 실패 검증 완료
