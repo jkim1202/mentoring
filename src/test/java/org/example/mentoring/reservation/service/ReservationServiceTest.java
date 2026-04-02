@@ -490,7 +490,7 @@ public class ReservationServiceTest {
 
         assertThatThrownBy(() -> reservationService.createReservation(application))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_ALREADY_EXISTS));
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SLOT_ALREADY_BOOKED));
 
         assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
         then(reservationRepository).should(never()).save(any(Reservation.class));

@@ -271,13 +271,13 @@ public class ApplicationServiceTest {
 
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
-        willThrow(new BusinessException(ErrorCode.RESERVATION_ALREADY_EXISTS))
+        willThrow(new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED))
                 .given(reservationService)
                 .createReservation(application);
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
-                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_ALREADY_EXISTS));
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SLOT_ALREADY_BOOKED));
 
         then(reservationService).should().createReservation(application);
     }
