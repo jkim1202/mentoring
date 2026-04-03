@@ -66,10 +66,23 @@ public class Reservation {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
+    private LocalDateTime menteePaidMarkedAt;
+
+    private LocalDateTime mentorPaidConfirmedAt;
+
+
     public void changeStatus(ReservationStatus newStatus) {
         if(this.status.canChangeTo(newStatus))
             this.status = newStatus;
         else
             throw new BusinessException(ErrorCode.RESERVATION_INVALID_STATUS_TRANSITION);
+    }
+
+    public void markPaid() {
+        this.menteePaidMarkedAt = LocalDateTime.now();
+    }
+
+    public void confirmPaid() {
+        this.mentorPaidConfirmedAt = LocalDateTime.now();
     }
 }

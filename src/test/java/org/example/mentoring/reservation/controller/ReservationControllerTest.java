@@ -3,11 +3,10 @@ package org.example.mentoring.reservation.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.entity.PlaceType;
+import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
-import org.example.mentoring.reservation.dto.ReservationStatusUpdateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.ReservationStatus;
 import org.example.mentoring.reservation.service.ReservationService;
@@ -26,6 +25,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,7 +33,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -66,15 +65,15 @@ public class ReservationControllerTest {
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockitoBean
+    private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
     @Test
-    @DisplayName("예약 상태 변경 성공")
-    void update_reservation_state_success() throws Exception {
-        ReservationStatusUpdateRequestDto req = new ReservationStatusUpdateRequestDto(
-                ReservationStatus.CONFIRMED
-        );
+    @DisplayName("예약 입금 표시 성공")
+    void mark_paid_success() throws Exception {
         ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(
                 1L,
-                ReservationStatus.CONFIRMED,
+                ReservationStatus.PENDING_PAYMENT,
                 LocalDateTime.MIN,
                 LocalDateTime.MAX,
                 1L,
@@ -84,12 +83,36 @@ public class ReservationControllerTest {
                 , SlotStatus.BOOKED
         );
 
-        given(reservationService.updateReservationStatus(any(), any(), any())).willReturn(res);
+        given(reservationService.markPaid(any(), any())).willReturn(res);
 
-        mockMvc.perform(patch("/api/reservations/{id}/status", 1L)
-                        .with(authentication(authOf(10L)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(patch("/api/reservations/{id}/mark-paid", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservationId").value(1))
+                .andExpect(jsonPath("$.reservationStatus").value("PENDING_PAYMENT"))
+                .andExpect(jsonPath("$.listingTitle").value("게시글 1 제목"))
+                .andExpect(jsonPath("$.slotStatus").value("BOOKED"));
+    }
+
+    @Test
+    @DisplayName("예약 입금 확인 성공")
+    void confirm_paid_success() throws Exception {
+        ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(
+                1L,
+                ReservationStatus.CONFIRMED,
+                LocalDateTime.MIN,
+                LocalDateTime.MAX,
+                1L,
+                "게시글 1 제목",
+                1L,
+                "멘티 닉네임 1",
+                SlotStatus.BOOKED
+        );
+
+        given(reservationService.confirmPaid(any(), any())).willReturn(res);
+
+        mockMvc.perform(patch("/api/reservations/{id}/confirm-paid", 1L)
+                        .with(authentication(authOf(10L))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservationId").value(1))
                 .andExpect(jsonPath("$.reservationStatus").value("CONFIRMED"))
@@ -98,35 +121,50 @@ public class ReservationControllerTest {
     }
 
     @Test
-    @DisplayName("예약 상태 변경 실패(권한 없음)")
-    void update_reservation_state_auth_fail() throws Exception {
-        ReservationStatusUpdateRequestDto req = new ReservationStatusUpdateRequestDto(
-                ReservationStatus.CONFIRMED
+    @DisplayName("예약 취소 성공")
+    void cancel_reservation_success() throws Exception {
+        ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(
+                1L,
+                ReservationStatus.CANCELED,
+                LocalDateTime.MIN,
+                LocalDateTime.MAX,
+                1L,
+                "게시글 1 제목",
+                1L,
+                "멘티 닉네임 1",
+                SlotStatus.OPEN
         );
 
-        given(reservationService.updateReservationStatus(any(), any(), any())).willThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN));
+        given(reservationService.cancelReservation(any(), any())).willReturn(res);
 
-        mockMvc.perform(patch("/api/reservations/{id}/status", 1L)
-                        .with(authentication(authOf(10L)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(patch("/api/reservations/{id}/cancel", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservationId").value(1))
+                .andExpect(jsonPath("$.reservationStatus").value("CANCELED"))
+                .andExpect(jsonPath("$.slotStatus").value("OPEN"));
+    }
+
+    @Test
+    @DisplayName("예약 완료 실패(권한 없음)")
+    void complete_reservation_auth_fail() throws Exception {
+        given(reservationService.completeReservation(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN));
+
+        mockMvc.perform(patch("/api/reservations/{id}/complete", 1L)
+                        .with(authentication(authOf(10L))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("AUTH_007"));
     }
 
     @Test
-    @DisplayName("예약 상태 변경 실패(잘못된 상태 전이)")
-    void update_reservation_state_invalid_fail() throws Exception {
-        ReservationStatusUpdateRequestDto req = new ReservationStatusUpdateRequestDto(
-                ReservationStatus.CONFIRMED
-        );
+    @DisplayName("예약 완료 실패(잘못된 상태 전이)")
+    void complete_reservation_invalid_fail() throws Exception {
+        given(reservationService.completeReservation(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_INVALID_STATUS_TRANSITION));
 
-        given(reservationService.updateReservationStatus(any(), any(), any())).willThrow(new BusinessException(ErrorCode.RESERVATION_INVALID_STATUS_TRANSITION));
-
-        mockMvc.perform(patch("/api/reservations/{id}/status", 1L)
-                        .with(authentication(authOf(10L)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
+        mockMvc.perform(patch("/api/reservations/{id}/complete", 1L)
+                        .with(authentication(authOf(10L))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("RESERVATION_002"));
     }

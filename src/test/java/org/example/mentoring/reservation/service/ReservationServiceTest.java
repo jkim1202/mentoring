@@ -38,8 +38,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -170,7 +170,7 @@ public class ReservationServiceTest {
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
 
         ReservationSummaryResponseDto result =
-                reservationService.updateReservationStatus(10000L, ReservationStatus.CANCELED, userDetails);
+                reservationService.cancelReservation(10000L, userDetails);
 
         assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.CANCELED);
         assertThat(result.partnerUserId()).isEqualTo(2L);
@@ -497,8 +497,8 @@ public class ReservationServiceTest {
     }
 
     @Test
-    @DisplayName("예약 당사자가 아니면 상태 변경 실패")
-    void update_reservation_status_forbidden_fail() {
+    @DisplayName("멘티가 아니면 입금 표시 실패")
+    void mark_paid_forbidden_fail() {
         User mentor = User.builder()
                 .id(1L)
                 .email("mentor@test.com")
@@ -519,7 +519,7 @@ public class ReservationServiceTest {
                 .listing(listing)
                 .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
                 .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
-                .status(SlotStatus.OPEN)
+                .status(SlotStatus.BOOKED)
                 .build();
 
         Application application = Application.builder()
@@ -543,19 +543,19 @@ public class ReservationServiceTest {
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
-                3L, "otherUser@test.com", "pw", UserStatus.ACTIVE, List.of()
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
 
-        assertThatThrownBy(() -> reservationService.updateReservationStatus(10000L, ReservationStatus.CONFIRMED, userDetails))
+        assertThatThrownBy(() -> reservationService.markPaid(10000L, userDetails))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
     }
 
     @Test
-    @DisplayName("예약 상태 CONFIRMED 변경 성공")
-    void update_reservation_status_to_confirmed_success() {
+    @DisplayName("예약 입금 확인 성공")
+    void confirm_paid_success() {
         User mentor = User.builder()
                 .id(1L)
                 .email("mentor@test.com")
@@ -578,7 +578,7 @@ public class ReservationServiceTest {
                 .listing(listing)
                 .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
                 .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
-                .status(SlotStatus.OPEN)
+                .status(SlotStatus.BOOKED)
                 .build();
 
         Application application = Application.builder()
@@ -608,18 +608,18 @@ public class ReservationServiceTest {
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
 
         ReservationSummaryResponseDto result =
-                reservationService.updateReservationStatus(10000L, ReservationStatus.CONFIRMED, userDetails);
+                reservationService.confirmPaid(10000L, userDetails);
 
         assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(result.partnerUserId()).isEqualTo(2L);
         assertThat(result.partnerNickname()).isEqualTo(mentee.getNickname());
+        assertThat(reservation.getMentorPaidConfirmedAt()).isNotNull();
         then(reservationRepository).should().save(reservation);
-
     }
 
     @Test
-    @DisplayName("예약 잘못된 상태 전이 실패")
-    void update_reservation_status_invalid_transition_fail() {
+    @DisplayName("멘토가 아니면 입금 확인 실패")
+    void confirm_paid_forbidden_fail() {
         User mentor = User.builder()
                 .id(1L)
                 .email("mentor@test.com")
@@ -640,7 +640,7 @@ public class ReservationServiceTest {
                 .listing(listing)
                 .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
                 .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
-                .status(SlotStatus.OPEN)
+                .status(SlotStatus.BOOKED)
                 .build();
 
         Application application = Application.builder()
@@ -664,13 +664,133 @@ public class ReservationServiceTest {
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.confirmPaid(10000L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("예약 완료 잘못된 상태 전이 실패")
+    void complete_reservation_invalid_transition_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
 
-        assertThatThrownBy(() -> reservationService.updateReservationStatus(10000L, ReservationStatus.PENDING_PAYMENT, userDetails))
+        assertThatThrownBy(() -> reservationService.completeReservation(10000L, userDetails))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_INVALID_STATUS_TRANSITION));
+    }
+
+    @Test
+    @DisplayName("멘티 입금 표시 성공")
+    void mark_paid_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
+                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        ReservationSummaryResponseDto result = reservationService.markPaid(10000L, userDetails);
+
+        assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.PENDING_PAYMENT);
+        assertThat(result.partnerUserId()).isEqualTo(1L);
+        assertThat(result.partnerNickname()).isEqualTo(mentor.getNickname());
+        assertThat(reservation.getMenteePaidMarkedAt()).isNotNull();
+        then(reservationRepository).should().save(reservation);
     }
 }

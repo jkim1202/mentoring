@@ -3,7 +3,6 @@ package org.example.mentoring.reservation.controller;
 import jakarta.validation.Valid;
 import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
-import org.example.mentoring.reservation.dto.ReservationStatusUpdateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
@@ -23,9 +22,24 @@ public class ReservationController {
         this.reservationService = reservationService;
     }
 
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<ReservationSummaryResponseDto> updateStatus(@Valid @RequestBody ReservationStatusUpdateRequestDto reservationStatusUpdateRequestDto, @PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
-        return ResponseEntity.ok(reservationService.updateReservationStatus(id, reservationStatusUpdateRequestDto.status(), userDetails));
+    @PatchMapping("/{id}/mark-paid")
+    public ResponseEntity<ReservationSummaryResponseDto> markPaid(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(reservationService.markPaid(id, userDetails));
+    }
+
+    @PatchMapping("/{id}/confirm-paid")
+    public ResponseEntity<ReservationSummaryResponseDto> confirmPaid(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(reservationService.confirmPaid(id, userDetails));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<ReservationSummaryResponseDto> cancelReservation(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(reservationService.cancelReservation(id, userDetails));
+    }
+
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<ReservationSummaryResponseDto> completeReservation(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(reservationService.completeReservation(id, userDetails));
     }
 
     @GetMapping("/{id}")
