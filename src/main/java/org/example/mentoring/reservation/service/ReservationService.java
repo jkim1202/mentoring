@@ -5,8 +5,8 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
-import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
@@ -47,16 +47,12 @@ public class ReservationService {
         Listing listing = application.getListing();
 
         // 현재 active인 slot이 이미 존재하는지 확인
-        if (reservationRepository.existsBySlotIdAndStatusIn(slot.getId(),
-                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)
-        )) {
-            throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
-        }
+        validateNoActiveReservation(slot.getId());
 
         // slot 상태 변경 -> BOOKED
         slot.book();
 
-        Reservation reservation = Reservation.builder()
+        reservationRepository.save(Reservation.builder()
                 .mentee(application.getMentee())
                 .mentor(listing.getMentor())
                 .application(application)
@@ -64,25 +60,62 @@ public class ReservationService {
                 .listing(listing)
                 .startAt(slot.getStartAt())
                 .endAt(slot.getEndAt())
-                .build();
-
-        reservationRepository.save(reservation);
+                .build());
     }
 
     @Transactional
-    public ReservationSummaryResponseDto updateReservationStatus(Long reservationId, ReservationStatus reservationStatus, MentoringUserDetails userDetails) {
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+    public ReservationSummaryResponseDto cancelReservation(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = findReservationById(reservationId);
 
-        //권한 확인
-        Long loginUserId = userDetails.getId();
-        if (!reservation.getMentor().getId().equals(loginUserId)
-                && !reservation.getMentee().getId().equals(loginUserId))
+        validateParticipantAuthority(reservation, userDetails);
+
+        reservation.getSlot().reopen();
+
+        reservation.changeStatus(ReservationStatus.CANCELED);
+
+        reservationRepository.save(reservation);
+
+        return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
+    }
+
+    @Transactional
+    public ReservationSummaryResponseDto markPaid(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = findReservationById(reservationId);
+
+        if(isNotMentee(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        if (reservationStatus == ReservationStatus.CANCELED)
-            reservation.getSlot().reopen();
-        reservation.changeStatus(reservationStatus);
+        reservation.markPaid();
+
+        reservationRepository.save(reservation);
+
+        return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
+    }
+
+    @Transactional
+    public ReservationSummaryResponseDto confirmPaid(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = findReservationById(reservationId);
+
+        if(isNotMentor(reservation, userDetails))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        reservation.confirmPaid();
+
+        reservation.changeStatus(ReservationStatus.CONFIRMED);
+
+        reservationRepository.save(reservation);
+
+        return ReservationSummaryResponseDto.from(reservation, userDetails.getId(), reservation.getSlot().getStatus());
+    }
+
+    @Transactional
+    public ReservationSummaryResponseDto completeReservation(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = findReservationById(reservationId);
+
+        if(isNotMentor(reservation, userDetails))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        reservation.changeStatus(ReservationStatus.COMPLETED);
 
         reservationRepository.save(reservation);
 
@@ -94,13 +127,9 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findDetailById(reservationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
 
-        Long loginUserId = userDetails.getId();
-        if (!reservation.getMentor().getId().equals(loginUserId)
-                && !reservation.getMentee().getId().equals(loginUserId)) {
-            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        }
+        validateParticipantAuthority(reservation, userDetails);
 
-        return ReservationDetailResponseDto.from(reservation, loginUserId);
+        return ReservationDetailResponseDto.from(reservation, userDetails.getId());
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +150,29 @@ public class ReservationService {
             case MENTEE -> reservationRepository.searchByMenteeId(filter, pageable, loginUserId)
                     .map(res -> ReservationSummaryResponseDto.from(res, userDetails.getId(), res.getSlot().getStatus()));
         };
+    }
+
+    private void validateParticipantAuthority(Reservation reservation, MentoringUserDetails userDetails) {
+        if(isNotMentor(reservation, userDetails) && isNotMentee(reservation, userDetails))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+    }
+    private boolean isNotMentor(Reservation reservation, MentoringUserDetails userDetails) {
+        return !reservation.getMentor().getId().equals(userDetails.getId());
+    }
+    private boolean isNotMentee(Reservation reservation, MentoringUserDetails userDetails) {
+        return !reservation.getMentee().getId().equals(userDetails.getId());
+    }
+    private Reservation findReservationById(Long reservationId) {
+        return reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+    private void validateNoActiveReservation(Long slotId) {
+        if (reservationRepository.existsBySlotIdAndStatusIn(
+                slotId,
+                List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)
+        )) {
+            throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
+        }
     }
     private Sort toSort(ReservationSort sort) {
         return switch (sort) {

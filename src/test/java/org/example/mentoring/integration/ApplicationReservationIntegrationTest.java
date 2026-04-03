@@ -179,9 +179,8 @@ public class ApplicationReservationIntegrationTest {
         Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
 
-        reservationService.updateReservationStatus(
+        reservationService.cancelReservation(
                 reservation.getId(),
-                ReservationStatus.CANCELED,
                 fixture.mentorDetails()
         );
 
@@ -203,7 +202,7 @@ public class ApplicationReservationIntegrationTest {
         Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId()).orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
 
         // when: 예약 취소 -> 슬롯 재활성화
-        reservationService.updateReservationStatus(reservation.getId(), ReservationStatus.CANCELED, fixture.mentorDetails());
+        reservationService.cancelReservation(reservation.getId(), fixture.mentorDetails());
 
         Reservation canceledReservation = reservationRepository.findByApplicationId(fixture.application().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));

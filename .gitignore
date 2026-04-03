@@ -64,5 +64,8 @@ credentials/
 ### Logs ###
 *.log
 
+### macOS ###
+.DS_Store
+
 ### Local planning docs ###
 docs-local/
