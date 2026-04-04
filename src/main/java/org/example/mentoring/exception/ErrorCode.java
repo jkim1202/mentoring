@@ -38,7 +38,8 @@ public enum ErrorCode {
 
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "RESERVATION_001", "예약을 찾을 수 없습니다."),
     RESERVATION_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "RESERVATION_002", "예약 상태를 변경할 수 없습니다."),
-    RESERVATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "RESERVATION_003", "이미 존재하는 예약입니다.");
+    RESERVATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "RESERVATION_003", "이미 존재하는 예약입니다."),
+    RESERVATION_CANCEL_DEADLINE_EXCEEDED(HttpStatus.BAD_REQUEST, "RESERVATION_004", "멘티 취소 가능 시간이 지났습니다.");
 
     private final HttpStatus status;
     private final String code;

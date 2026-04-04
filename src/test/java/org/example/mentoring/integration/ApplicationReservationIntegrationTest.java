@@ -70,6 +70,10 @@ public class ApplicationReservationIntegrationTest {
     private ReservationService reservationService;
 
     private ApplicationFixture createApplicationFixture() {
+        return createApplicationFixture(LocalDateTime.now().plusDays(3).withMinute(0).withSecond(0).withNano(0));
+    }
+
+    private ApplicationFixture createApplicationFixture(LocalDateTime startAt) {
         User mentor = userRepository.save(
                 User.builder()
                         .email("mentor@test.com")
@@ -104,8 +108,8 @@ public class ApplicationReservationIntegrationTest {
         Slot slot = slotRepository.save(
                 Slot.builder()
                         .listing(listing)
-                        .startAt(LocalDateTime.of(2026, 3, 17, 10, 0))
-                        .endAt(LocalDateTime.of(2026, 3, 17, 11, 0))
+                        .startAt(startAt)
+                        .endAt(startAt.plusHours(1))
                         .status(SlotStatus.OPEN)
                         .build()
         );
@@ -192,6 +196,27 @@ public class ApplicationReservationIntegrationTest {
 
         assertThat(canceledReservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
         assertThat(reopenedSlot.getStatus()).isEqualTo(SlotStatus.OPEN);
+    }
+
+    @Test
+    void mentee_cannot_cancel_confirmed_reservation_within_24_hours() throws BusinessException {
+        ApplicationFixture fixture = createApplicationFixture(
+                LocalDateTime.now().plusHours(12).withMinute(0).withSecond(0).withNano(0)
+        );
+        applicationService.updateApplicationStatus(
+                fixture.application().getId(),
+                fixture.mentorDetails(),
+                ApplicationStatus.ACCEPTED
+        );
+
+        Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        reservationService.confirmPaid(reservation.getId(), fixture.mentorDetails());
+
+        assertThatThrownBy(() -> reservationService.cancelReservation(reservation.getId(), fixture.menteeDetails()))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_CANCEL_DEADLINE_EXCEEDED));
     }
 
     @Test

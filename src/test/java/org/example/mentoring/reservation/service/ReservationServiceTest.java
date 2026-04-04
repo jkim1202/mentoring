@@ -210,6 +210,130 @@ public class ReservationServiceTest {
     }
 
     @Test
+    @DisplayName("확정된 예약은 멘티가 24시간 이내 취소할 수 없다")
+    void mentee_cannot_cancel_confirmed_reservation_within_24_hours() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().plusHours(24);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.CONFIRMED)
+                .build();
+
+        MentoringUserDetails menteeDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.cancelReservation(10000L, menteeDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_CANCEL_DEADLINE_EXCEEDED));
+
+        then(reservationRepository).should(never()).save(any(Reservation.class));
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.BOOKED);
+    }
+
+    @Test
+    @DisplayName("확정된 예약은 멘토가 시작 24시간 이내에도 취소할 수 있다")
+    void mentor_can_cancel_confirmed_reservation_within_24_hours() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .nickname("멘토닉네임")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .nickname("멘티닉네임")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().plusHours(24);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Application application = Application.builder()
+                .id(1000L)
+                .listing(listing)
+                .slot(slot)
+                .mentee(mentee)
+                .status(ApplicationStatus.ACCEPTED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .application(application)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.CONFIRMED)
+                .build();
+
+        MentoringUserDetails mentorDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        ReservationSummaryResponseDto result = reservationService.cancelReservation(10000L, mentorDetails);
+
+        assertThat(result.reservationStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(result.slotStatus()).isEqualTo(SlotStatus.OPEN);
+        then(reservationRepository).should().save(reservation);
+    }
+
+    @Test
     @DisplayName("예약 전체 조회 성공")
     void get_reservations_success() {
         User mentor = User.builder()

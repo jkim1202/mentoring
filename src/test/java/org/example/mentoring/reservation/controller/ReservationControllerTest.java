@@ -146,6 +146,18 @@ public class ReservationControllerTest {
     }
 
     @Test
+    @DisplayName("예약 취소 실패(멘티 취소 가능 시간 초과)")
+    void cancel_reservation_deadline_fail() throws Exception {
+        given(reservationService.cancelReservation(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_CANCEL_DEADLINE_EXCEEDED));
+
+        mockMvc.perform(patch("/api/reservations/{id}/cancel", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RESERVATION_004"));
+    }
+
+    @Test
     @DisplayName("예약 완료 실패(권한 없음)")
     void complete_reservation_auth_fail() throws Exception {
         given(reservationService.completeReservation(any(), any()))
