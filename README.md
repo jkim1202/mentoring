@@ -225,6 +225,17 @@ erDiagram
   - `SOONEST`: `startAt ASC`
   - `LATEST`: `createdAt DESC`
 
+## 예약 취소 정책
+- `PENDING_PAYMENT`
+  - 예약 당사자(멘토/멘티) 모두 취소 가능
+- `CONFIRMED`
+  - 멘티는 시작 24시간 전까지만 취소 가능
+  - 멘토는 시작 시각과 관계없이 취소 가능
+- 취소 성공 시
+  - `Reservation`은 `CANCELED`로 전이
+  - `Slot`은 다시 `OPEN`으로 복귀
+- 멘티가 취소 가능 시간을 넘기면 `RESERVATION_CANCEL_DEADLINE_EXCEEDED`를 반환한다
+
 ## 데이터베이스 마이그레이션
 Flyway로 스키마를 버전 관리한다.
 
@@ -447,12 +458,13 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
 - Reservation 통합 테스트 보강
   - 동일 슬롯 동시 수락 경쟁 상황
   - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
-- 취소 정책 세부화
+- 시작 시간 지난 `PENDING_PAYMENT` 처리 정책 확정
 - 리뷰 도메인 구현
 - 채팅은 Reservation 기반 1:1 REST 메시지 기능부터 구현하고, 실시간 WebSocket/STOMP는 후속 확장으로 분리
 
 ## 통합 테스트 진행 상태
 - `Application ACCEPTED -> Reservation 생성 -> Slot BOOKED` 검증 완료
 - 예약 취소 시 `Reservation CANCELED -> Slot OPEN` 검증 완료
+- `CONFIRMED` 상태에서 멘티 24시간 이내 취소 불가 검증 완료
 - 취소 후 같은 슬롯 재예약 가능 검증 완료
 - 활성 예약이 있는 동일 슬롯 중복 예약 실패 검증 완료

@@ -25,10 +25,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class ReservationService {
+    private static final long MENTEE_CANCEL_DEADLINE_HOURS = 24L;
+
     private final ReservationRepository reservationRepository;
     private final SlotRepository slotRepository;
 
@@ -67,11 +70,10 @@ public class ReservationService {
     public ReservationSummaryResponseDto cancelReservation(Long reservationId, MentoringUserDetails userDetails) {
         Reservation reservation = findReservationById(reservationId);
 
-        validateParticipantAuthority(reservation, userDetails);
-
-        reservation.getSlot().reopen();
+        validateCancelAuthorityAndDeadline(reservation, userDetails);
 
         reservation.changeStatus(ReservationStatus.CANCELED);
+        reservation.getSlot().reopen();
 
         reservationRepository.save(reservation);
 
@@ -82,7 +84,7 @@ public class ReservationService {
     public ReservationSummaryResponseDto markPaid(Long reservationId, MentoringUserDetails userDetails) {
         Reservation reservation = findReservationById(reservationId);
 
-        if(isNotMentee(reservation, userDetails))
+        if (!isMentee(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         reservation.markPaid();
@@ -96,7 +98,7 @@ public class ReservationService {
     public ReservationSummaryResponseDto confirmPaid(Long reservationId, MentoringUserDetails userDetails) {
         Reservation reservation = findReservationById(reservationId);
 
-        if(isNotMentor(reservation, userDetails))
+        if (!isMentor(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         reservation.confirmPaid();
@@ -112,7 +114,7 @@ public class ReservationService {
     public ReservationSummaryResponseDto completeReservation(Long reservationId, MentoringUserDetails userDetails) {
         Reservation reservation = findReservationById(reservationId);
 
-        if(isNotMentor(reservation, userDetails))
+        if (!isMentor(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         reservation.changeStatus(ReservationStatus.COMPLETED);
@@ -152,20 +154,38 @@ public class ReservationService {
         };
     }
 
+    private void validateCancelAuthorityAndDeadline(Reservation reservation, MentoringUserDetails userDetails) {
+        validateParticipantAuthority(reservation, userDetails);
+
+        if (reservation.getStatus() == ReservationStatus.PENDING_PAYMENT || isMentor(reservation, userDetails)) {
+            return;
+        }
+
+        LocalDateTime menteeCancelDeadline = reservation.getStartAt().minusHours(MENTEE_CANCEL_DEADLINE_HOURS);
+        if (!LocalDateTime.now().isBefore(menteeCancelDeadline)) {
+            throw new BusinessException(ErrorCode.RESERVATION_CANCEL_DEADLINE_EXCEEDED);
+        }
+    }
+
     private void validateParticipantAuthority(Reservation reservation, MentoringUserDetails userDetails) {
-        if(isNotMentor(reservation, userDetails) && isNotMentee(reservation, userDetails))
+        if (!isMentor(reservation, userDetails) && !isMentee(reservation, userDetails)) {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
     }
-    private boolean isNotMentor(Reservation reservation, MentoringUserDetails userDetails) {
-        return !reservation.getMentor().getId().equals(userDetails.getId());
+
+    private boolean isMentor(Reservation reservation, MentoringUserDetails userDetails) {
+        return reservation.getMentor().getId().equals(userDetails.getId());
     }
-    private boolean isNotMentee(Reservation reservation, MentoringUserDetails userDetails) {
-        return !reservation.getMentee().getId().equals(userDetails.getId());
+
+    private boolean isMentee(Reservation reservation, MentoringUserDetails userDetails) {
+        return reservation.getMentee().getId().equals(userDetails.getId());
     }
+
     private Reservation findReservationById(Long reservationId) {
         return reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
     }
+
     private void validateNoActiveReservation(Long slotId) {
         if (reservationRepository.existsBySlotIdAndStatusIn(
                 slotId,
