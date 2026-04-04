@@ -67,9 +67,13 @@
 ### Reservation
 - 신청 수락 시 예약 생성
 - `GET /api/reservations/{id}`
-- `PATCH /api/reservations/{id}/status`
+- `PATCH /api/reservations/{id}/mark-paid`
+- `PATCH /api/reservations/{id}/confirm-paid`
+- `PATCH /api/reservations/{id}/cancel`
+- `PATCH /api/reservations/{id}/complete`
 - `GET /api/reservations`
 - 예약 상태 변경 응답에 현재 `slotStatus` 포함
+- `menteePaidMarkedAt`, `mentorPaidConfirmedAt` 필드로 결제 표시/확인 시각 기록
 - 예약은 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
 
 ## 상태 전이
@@ -189,6 +193,8 @@ erDiagram
         datetime end_at
         enum status
         bigint active_slot_id UK
+        datetime mentee_paid_marked_at
+        datetime mentor_paid_confirmed_at
     }
 ```
 
@@ -198,6 +204,7 @@ erDiagram
 - `reservations.active_slot_id UNIQUE`로 활성 예약 상태에서만 같은 슬롯 중복 예약을 막는다.
 - 서비스에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 락으로 먼저 검증하고, DB는 최종 무결성을 보장한다.
 - `Reservation`은 `start_at`, `end_at`을 별도로 저장해 슬롯 변경/삭제 이후에도 예약 시각 이력을 보존한다.
+- 멘티 입금 표시와 멘토 입금 확인은 각각 `mentee_paid_marked_at`, `mentor_paid_confirmed_at`으로 기록한다.
 
 ## 트러블슈팅 요약
 - 예약 취소 후 슬롯 재사용 정책을 적용하는 과정에서 기존 `reservations.slot_id UNIQUE` 제약이 취소 이력까지 막아 같은 슬롯 재예약을 불가능하게 만드는 문제를 확인했다.
@@ -360,18 +367,11 @@ Authorization: Bearer <ACCESS_TOKEN>
 }
 ```
 
-### 예약 상태 변경
+### 예약 입금 확인
 요청:
 ```http
-PATCH /api/reservations/20/status
+PATCH /api/reservations/20/confirm-paid
 Authorization: Bearer <ACCESS_TOKEN>
-Content-Type: application/json
-```
-
-```json
-{
-  "status": "CONFIRMED"
-}
 ```
 
 응답:
@@ -447,7 +447,7 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
 - Reservation 통합 테스트 보강
   - 동일 슬롯 동시 수락 경쟁 상황
   - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
-- 결제 및 취소 정책 구체화
+- 취소 정책 세부화
 - 리뷰 도메인 구현
 - 채팅은 Reservation 기반 1:1 REST 메시지 기능부터 구현하고, 실시간 WebSocket/STOMP는 후속 확장으로 분리
 
