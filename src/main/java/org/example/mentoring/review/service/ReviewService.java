@@ -9,11 +9,18 @@ import org.example.mentoring.reservation.repository.ReservationRepository;
 import org.example.mentoring.review.domain.Review;
 import org.example.mentoring.review.dto.ReviewCreateRequestDto;
 import org.example.mentoring.review.dto.ReviewCreateResponseDto;
+import org.example.mentoring.review.dto.ReviewDetailResponseDto;
+import org.example.mentoring.review.dto.ReviewSearchRequestDto;
+import org.example.mentoring.review.dto.ReviewSummaryResponseDto;
 import org.example.mentoring.review.repository.ReviewRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +56,23 @@ public class ReviewService {
                 .build();
 
         return ReviewCreateResponseDto.from(reviewRepository.save(review));
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewDetailResponseDto getReview(Long reviewId) {
+        Review review = reviewRepository.findDetailById(reviewId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+        return ReviewDetailResponseDto.from(review);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReviewSummaryResponseDto> getReviews(ReviewSearchRequestDto requestDto) {
+        int page = requestDto.page() == null ? 0 : requestDto.page();
+        int size = requestDto.size() == null ? 10 : requestDto.size();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        return reviewRepository.findByListingId(requestDto.listingId(), pageable)
+                .map(ReviewSummaryResponseDto::from);
     }
 
     private Reservation findReservation(Long reservationId) {

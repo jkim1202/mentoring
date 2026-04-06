@@ -1,0 +1,31 @@
+package org.example.mentoring.review.dto;
+
+import org.example.mentoring.review.domain.Review;
+
+import java.time.LocalDateTime;
+
+public record ReviewDetailResponseDto(
+        Long reviewId,
+        Long reservationId,
+        Long listingId,
+        String listingTitle,
+        Long reviewerUserId,
+        String reviewerNickname,
+        Integer rating,
+        String content,
+        LocalDateTime createdAt
+) {
+    public static ReviewDetailResponseDto from(Review review) {
+        return new ReviewDetailResponseDto(
+                review.getId(),
+                review.getReservation().getId(),
+                review.getListing().getId(),
+                review.getListing().getTitle(),
+                review.getReviewer().getId(),
+                review.getReviewer().getNickname(),
+                review.getRating(),
+                review.getContent(),
+                review.getCreatedAt()
+        );
+    }
+}
