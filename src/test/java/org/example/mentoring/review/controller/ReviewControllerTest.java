@@ -5,6 +5,8 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.review.dto.ReviewCreateRequestDto;
 import org.example.mentoring.review.dto.ReviewCreateResponseDto;
+import org.example.mentoring.review.dto.ReviewDetailResponseDto;
+import org.example.mentoring.review.dto.ReviewSummaryResponseDto;
 import org.example.mentoring.review.service.ReviewService;
 import org.example.mentoring.security.JwtAuthenticationFilter;
 import org.example.mentoring.security.MentoringUserDetails;
@@ -14,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,6 +31,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -109,6 +114,62 @@ class ReviewControllerTest {
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("REVIEW_001"));
+    }
+
+    @Test
+    @DisplayName("리뷰 상세 조회 성공")
+    void get_review_success() throws Exception {
+        ReviewDetailResponseDto responseDto = new ReviewDetailResponseDto(
+                10L,
+                1L,
+                100L,
+                "Spring 멘토링",
+                2L,
+                "멘티닉네임",
+                5,
+                "도움이 많이 됐습니다.",
+                LocalDateTime.of(2026, 4, 6, 12, 0)
+        );
+
+        given(reviewService.getReview(10L)).willReturn(responseDto);
+
+        mockMvc.perform(get("/api/reviews/{id}", 10L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewId").value(10L))
+                .andExpect(jsonPath("$.listingTitle").value("Spring 멘토링"))
+                .andExpect(jsonPath("$.reviewerNickname").value("멘티닉네임"));
+    }
+
+    @Test
+    @DisplayName("없는 리뷰 상세 조회 실패")
+    void get_review_fail_when_not_found() throws Exception {
+        given(reviewService.getReview(999L))
+                .willThrow(new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+
+        mockMvc.perform(get("/api/reviews/{id}", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("REVIEW_002"));
+    }
+
+    @Test
+    @DisplayName("리뷰 목록 조회 성공")
+    void get_reviews_success() throws Exception {
+        List<ReviewSummaryResponseDto> items = List.of(
+                new ReviewSummaryResponseDto(10L, 2L, "멘티1", 5, "첫 번째 리뷰", LocalDateTime.of(2026, 4, 6, 12, 0)),
+                new ReviewSummaryResponseDto(11L, 3L, "멘티2", 4, "두 번째 리뷰", LocalDateTime.of(2026, 4, 5, 12, 0))
+        );
+
+        given(reviewService.getReviews(any()))
+                .willReturn(new PageImpl<>(items, PageRequest.of(0, 10), items.size()));
+
+        mockMvc.perform(get("/api/reviews")
+                        .param("listingId", "100")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].reviewId").value(10L))
+                .andExpect(jsonPath("$.content[0].reviewerNickname").value("멘티1"))
+                .andExpect(jsonPath("$.content[1].reviewId").value(11L));
     }
 
     private UsernamePasswordAuthenticationToken authOf(Long userId) {
