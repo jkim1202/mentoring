@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 @Getter
@@ -94,5 +95,14 @@ public class Listing {
         if (placeDesc != null && !placeDesc.isBlank()) {
             this.placeDesc = placeDesc;
         }
+    }
+    public void applyRating(int rating) {
+        int newReviewCount = this.reviewCount + 1;
+        BigDecimal totalRating = this.avgRating.multiply(BigDecimal.valueOf(this.reviewCount));
+        BigDecimal newAvgRating = totalRating
+                .add(BigDecimal.valueOf(rating))
+                .divide(BigDecimal.valueOf(newReviewCount), 2, RoundingMode.HALF_UP);
+        this.reviewCount = newReviewCount;
+        this.avgRating = newAvgRating;
     }
 }
