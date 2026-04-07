@@ -5,6 +5,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
 import org.example.mentoring.reservation.service.ReservationMessageService;
 import org.example.mentoring.security.JwtAuthenticationFilter;
 import org.example.mentoring.security.MentoringUserDetails;
@@ -25,6 +26,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -104,6 +106,37 @@ class ReservationMessageControllerTest {
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("RESERVATION_006"));
+    }
+
+    @Test
+    @DisplayName("예약 메시지 목록 조회 성공")
+    void get_messages_success() throws Exception {
+        List<ReservationMessageResponseDto> response = List.of(
+                new ReservationMessageResponseDto(1L, 1L, "멘토", "첫 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 0)),
+                new ReservationMessageResponseDto(2L, 2L, "멘티", "두 번째 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 1))
+        );
+
+        given(reservationMessageService.getMessages(any(), any())).willReturn(response);
+
+        mockMvc.perform(get("/api/reservations/{reservationId}/messages", 10L)
+                        .with(authentication(authOf(2L))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].messageId").value(1L))
+                .andExpect(jsonPath("$[0].senderNickname").value("멘토"))
+                .andExpect(jsonPath("$[1].messageId").value(2L))
+                .andExpect(jsonPath("$[1].senderNickname").value("멘티"));
+    }
+
+    @Test
+    @DisplayName("예약 당사자가 아니면 메시지 목록 조회 실패")
+    void get_messages_fail_when_not_participant() throws Exception {
+        given(reservationMessageService.getMessages(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN));
+
+        mockMvc.perform(get("/api/reservations/{reservationId}/messages", 10L)
+                        .with(authentication(authOf(3L))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("AUTH_007"));
     }
 
     private UsernamePasswordAuthenticationToken authOf(Long userId) {

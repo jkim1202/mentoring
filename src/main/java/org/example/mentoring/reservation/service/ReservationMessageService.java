@@ -4,6 +4,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationMessage;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -15,6 +16,8 @@ import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class ReservationMessageService {
@@ -34,7 +37,8 @@ public class ReservationMessageService {
         Reservation reservation = findReservation(reservationId);
         User sender = findUser(userDetails.getId());
 
-        validateReservationAndUser(reservation, sender);
+        validateParticipantAuthority(reservation, sender);
+        validateWritableStatus(reservation);
 
         ReservationMessage reservationMessage = ReservationMessage
                 .builder()
@@ -48,14 +52,28 @@ public class ReservationMessageService {
         return ReservationMessageCreateResponseDto.from(reservationMessage);
     }
 
+    @Transactional(readOnly = true)
+    public List<ReservationMessageResponseDto> getMessages(Long reservationId, MentoringUserDetails userDetails) {
+        Reservation reservation = findReservation(reservationId);
+        User user = findUser(userDetails.getId());
 
-    private void validateReservationAndUser(Reservation reservation, User user  ) {
+        validateParticipantAuthority(reservation, user);
+
+        return reservationMessageRepository.findByReservationIdOrderByCreatedAtAsc(reservationId).stream()
+                .map(ReservationMessageResponseDto::from)
+                .toList();
+    }
+
+    private void validateParticipantAuthority(Reservation reservation, User user) {
         if(!reservation.getMentee().getId().equals(user.getId()) && !reservation.getMentor().getId().equals(user.getId()))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+    }
 
+    private void validateWritableStatus(Reservation reservation) {
         if(!reservation.getStatus().equals(ReservationStatus.PENDING_PAYMENT) && !reservation.getStatus().equals(ReservationStatus.CONFIRMED))
             throw new BusinessException(ErrorCode.RESERVATION_MESSAGE_NOT_WRITABLE);
     }
+
     private Reservation findReservation(Long reservationId) {
         return reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
