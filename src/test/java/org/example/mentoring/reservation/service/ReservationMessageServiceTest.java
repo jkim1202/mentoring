@@ -6,6 +6,7 @@ import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationMessage;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -116,6 +117,60 @@ class ReservationMessageServiceTest {
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_MESSAGE_NOT_WRITABLE));
 
         then(reservationMessageRepository).should(never()).save(org.mockito.ArgumentMatchers.any(ReservationMessage.class));
+    }
+
+    @Test
+    @DisplayName("예약 메시지 목록 조회 성공")
+    void get_messages_success() {
+        User mentor = createUser(1L, "mentor@test.com", "멘토");
+        User mentee = createUser(2L, "mentee@test.com", "멘티");
+        Reservation reservation = createReservation(10L, mentor, mentee, ReservationStatus.COMPLETED);
+        MentoringUserDetails userDetails = createUserDetails(mentee);
+        ReservationMessage firstMessage = ReservationMessage.builder()
+                .id(100L)
+                .reservation(reservation)
+                .sender(mentor)
+                .content("첫 메시지")
+                .createdAt(LocalDateTime.of(2026, 4, 12, 10, 0))
+                .build();
+        ReservationMessage secondMessage = ReservationMessage.builder()
+                .id(101L)
+                .reservation(reservation)
+                .sender(mentee)
+                .content("두 번째 메시지")
+                .createdAt(LocalDateTime.of(2026, 4, 12, 10, 1))
+                .build();
+
+        given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
+        given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
+        given(reservationMessageRepository.findByReservationIdOrderByCreatedAtAsc(10L))
+                .willReturn(List.of(firstMessage, secondMessage));
+
+        List<ReservationMessageResponseDto> response = reservationMessageService.getMessages(10L, userDetails);
+
+        assertThat(response).hasSize(2);
+        assertThat(response.get(0).messageId()).isEqualTo(100L);
+        assertThat(response.get(0).senderUserId()).isEqualTo(1L);
+        assertThat(response.get(0).content()).isEqualTo("첫 메시지");
+        assertThat(response.get(1).messageId()).isEqualTo(101L);
+        assertThat(response.get(1).senderUserId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("예약 당사자가 아니면 메시지 목록 조회 실패")
+    void get_messages_fails_when_not_participant() {
+        User mentor = createUser(1L, "mentor@test.com", "멘토");
+        User mentee = createUser(2L, "mentee@test.com", "멘티");
+        User outsider = createUser(3L, "outsider@test.com", "외부인");
+        Reservation reservation = createReservation(10L, mentor, mentee, ReservationStatus.CANCELED);
+        MentoringUserDetails userDetails = createUserDetails(outsider);
+
+        given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
+        given(userRepository.findById(3L)).willReturn(Optional.of(outsider));
+
+        assertThatThrownBy(() -> reservationMessageService.getMessages(10L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
     }
 
     private User createUser(Long id, String email, String nickname) {
