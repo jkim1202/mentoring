@@ -459,8 +459,14 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
   - 동일 슬롯 동시 수락 경쟁 상황
   - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
 - 시작 시간 지난 `PENDING_PAYMENT` 처리 정책 확정
-- 리뷰 도메인 구현
-- 채팅은 Reservation 기반 1:1 REST 메시지 기능부터 구현하고, 실시간 WebSocket/STOMP는 후속 확장으로 분리
+- 채팅 MVP 구현
+  - reservation 당 1 message thread
+  - 예약 당사자만 접근 가능
+  - `reservation_messages` 테이블 기반 메시지 저장 API / 메시지 조회 API
+  - 메시지 도메인과 저장/조회 흐름은 REST로 먼저 안정화
+  - 쓰기 가능 상태는 `PENDING_PAYMENT`, `CONFIRMED`
+  - `CANCELED`, `COMPLETED`는 읽기만 허용
+  - 실시간 WebSocket/STOMP, 읽음 처리, 안 읽은 메시지 수, 푸시/알림은 후속 확장으로 분리
 
 ## 통합 테스트 진행 상태
 - `Application ACCEPTED -> Reservation 생성 -> Slot BOOKED` 검증 완료

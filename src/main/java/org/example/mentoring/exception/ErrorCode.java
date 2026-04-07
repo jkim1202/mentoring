@@ -41,6 +41,7 @@ public enum ErrorCode {
     RESERVATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "RESERVATION_003", "이미 존재하는 예약입니다."),
     RESERVATION_CANCEL_DEADLINE_EXCEEDED(HttpStatus.BAD_REQUEST, "RESERVATION_004", "멘티 취소 가능 시간이 지났습니다."),
     RESERVATION_NOT_COMPLETED(HttpStatus.BAD_REQUEST, "RESERVATION_005", "아직 예약이 완료되지 않았습니다."),
+    RESERVATION_MESSAGE_NOT_WRITABLE(HttpStatus.BAD_REQUEST, "RESERVATION_006", "현재 예약 상태에서는 메시지를 보낼 수 없습니다."),
 
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_001", "리뷰를 찾을 수 없습니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW_002", "이미 리뷰가 존재합니다.");
