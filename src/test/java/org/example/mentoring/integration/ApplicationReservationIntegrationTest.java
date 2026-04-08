@@ -167,6 +167,24 @@ public class ApplicationReservationIntegrationTest {
         assertThat(reservationRepository.findByApplicationId(fixture.application().getId())).isPresent();
     }
 
+    @Test
+    void accepting_application_fails_when_slot_start_time_passed() throws BusinessException {
+        ApplicationFixture fixture = createApplicationFixture(LocalDateTime.now().minusMinutes(1));
+
+        assertThatThrownBy(() -> applicationService.updateApplicationStatus(
+                fixture.application().getId(),
+                fixture.mentorDetails(),
+                ApplicationStatus.ACCEPTED
+        )).isInstanceOfSatisfying(BusinessException.class, e ->
+                assertThat(e.getErrorCode()).isEqualTo(ErrorCode.APPLICATION_ACCEPT_EXPIRED));
+
+        Slot slot = slotRepository.findById(fixture.slot().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
+        assertThat(reservationRepository.findByApplicationId(fixture.application().getId())).isNotPresent();
+    }
+
     // 예약 취소 시 슬롯 OPEN 재활성화
     @Test
     void canceling_reservation_changes_status_to_canceled_and_reopens_slot() throws BusinessException {

@@ -84,7 +84,7 @@ class ReviewServiceTest {
         assertThat(savedReview.getReservation()).isEqualTo(reservation);
         assertThat(savedReview.getListing()).isEqualTo(listing);
         assertThat(savedReview.getReviewer()).isEqualTo(mentee);
-        assertThat(savedReview.getRating()).isEqualTo(5);
+        assertThat(savedReview.getRating()).isEqualTo((byte) 5);
         assertThat(savedReview.getContent()).isEqualTo("도움이 많이 됐습니다.");
         assertThat(listing.getReviewCount()).isEqualTo(1);
         assertThat(listing.getAvgRating()).isEqualByComparingTo(new BigDecimal("5.00"));
@@ -126,7 +126,7 @@ class ReviewServiceTest {
                 .reservation(reservation)
                 .listing(listing)
                 .reviewer(mentee)
-                .rating(5)
+                .rating((byte) 5)
                 .content("도움이 많이 됐습니다.")
                 .createdAt(LocalDateTime.of(2026, 4, 6, 12, 0))
                 .build();
@@ -162,7 +162,7 @@ class ReviewServiceTest {
                 .id(20L)
                 .listing(listing)
                 .reviewer(mentee)
-                .rating(5)
+                .rating((byte) 5)
                 .content("첫 번째 리뷰")
                 .createdAt(LocalDateTime.of(2026, 4, 6, 12, 0))
                 .build();
@@ -170,7 +170,7 @@ class ReviewServiceTest {
                 .id(21L)
                 .listing(listing)
                 .reviewer(mentee)
-                .rating(4)
+                .rating((byte) 4)
                 .content("두 번째 리뷰")
                 .createdAt(LocalDateTime.of(2026, 4, 5, 12, 0))
                 .build();

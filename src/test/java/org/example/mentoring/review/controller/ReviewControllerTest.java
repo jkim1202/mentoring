@@ -113,7 +113,7 @@ class ReviewControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("REVIEW_001"));
+                .andExpect(jsonPath("$.code").value("REVIEW_002"));
     }
 
     @Test
@@ -148,7 +148,7 @@ class ReviewControllerTest {
 
         mockMvc.perform(get("/api/reviews/{id}", 999L))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("REVIEW_002"));
+                .andExpect(jsonPath("$.code").value("REVIEW_001"));
     }
 
     @Test

@@ -13,7 +13,7 @@ public record ReviewCreateResponseDto(
     public static ReviewCreateResponseDto from(Review review) {
         return new ReviewCreateResponseDto(
                 review.getId(),
-                review.getRating(),
+                review.getRating().intValue(),
                 review.getContent(),
                 review.getCreatedAt()
         );

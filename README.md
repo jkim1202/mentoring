@@ -22,6 +22,7 @@
 - 슬롯이 해당 등록글에 속하지 않으면 신청할 수 없다.
 - 활성 예약이 존재하는 슬롯에는 새 신청/수락을 진행할 수 없다.
 - 신청 수락 시 예약이 생성되며, 예약 생성과 슬롯 점유는 같은 트랜잭션에서 처리한다.
+- 시작 시간이 지난 슬롯의 신청은 수락할 수 없다.
 - 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서는 같은 슬롯에 중복 예약할 수 없다.
 - 예약이 `CANCELED` 되면 슬롯은 다시 `OPEN`으로 돌아가며, 이후 새 예약 이력을 생성할 수 있다.
 
@@ -391,6 +392,9 @@ Content-Type: application/json
 PATCH /api/applications/10/accept
 Authorization: Bearer <ACCESS_TOKEN>
 ```
+
+- `slot.startAt`이 현재 시각을 지났으면 수락할 수 없다.
+- 이 경우 `APPLICATION_ACCEPT_EXPIRED`를 반환한다.
 
 응답:
 ```json

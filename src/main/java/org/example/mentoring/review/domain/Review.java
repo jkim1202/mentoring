@@ -38,7 +38,7 @@ public class Review {
     private User reviewer;
 
     @Column(nullable = false)
-    private Integer rating;
+    private Byte rating;
 
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
