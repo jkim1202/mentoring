@@ -87,6 +87,9 @@ public class ReservationService {
         if (!isMentee(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
+        validatePaymentExpiry(reservation);
+        validateReservationNotStarted(reservation);
+
         reservation.markPaid();
 
         reservationRepository.save(reservation);
@@ -100,6 +103,8 @@ public class ReservationService {
 
         if (!isMentor(reservation, userDetails))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        validateReservationNotStarted(reservation);
 
         reservation.confirmPaid();
 
@@ -193,6 +198,16 @@ public class ReservationService {
         )) {
             throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
         }
+    }
+    private void validatePaymentExpiry(Reservation reservation){
+        LocalDateTime createdAt = reservation.getCreatedAt();
+        if(reservation.getStatus().equals(ReservationStatus.PENDING_PAYMENT) && !LocalDateTime.now().isBefore(createdAt.plusHours(1)))
+            throw new BusinessException(ErrorCode.RESERVATION_PAYMENT_EXPIRED);
+    }
+    private void validateReservationNotStarted(Reservation reservation){
+        LocalDateTime startAt = reservation.getStartAt();
+        if(reservation.getStatus().equals(ReservationStatus.PENDING_PAYMENT) && !LocalDateTime.now().isBefore(startAt))
+            throw new BusinessException(ErrorCode.RESERVATION_START_AT_EXPIRED);
     }
     private Sort toSort(ReservationSort sort) {
         return switch (sort) {
