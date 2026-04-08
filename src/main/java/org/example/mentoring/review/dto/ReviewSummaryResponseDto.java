@@ -17,7 +17,7 @@ public record ReviewSummaryResponseDto(
                 review.getId(),
                 review.getReviewer().getId(),
                 review.getReviewer().getNickname(),
-                review.getRating(),
+                review.getRating().intValue(),
                 review.getContent(),
                 review.getCreatedAt()
         );

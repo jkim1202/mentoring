@@ -217,9 +217,19 @@ public class ApplicationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.OPEN)
+                .build();
+
         Application application = Application.builder()
                 .id(100L)
                 .listing(listing)
+                .slot(slot)
                 .status(ApplicationStatus.APPLIED)
                 .build();
 
@@ -238,6 +248,49 @@ public class ApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("시작 시간이 지난 신청은 수락 실패")
+    void update_application_status_accept_expired_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().minusMinutes(1);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        Application application = Application.builder()
+                .id(100L)
+                .listing(listing)
+                .slot(slot)
+                .status(ApplicationStatus.APPLIED)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(userRepository.existsById(1L)).willReturn(true);
+
+        assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.APPLICATION_ACCEPT_EXPIRED));
+
+        then(reservationService).shouldHaveNoInteractions();
+    }
+
+    @Test
     @DisplayName("동일 슬롯 동시 수락 상황이면 예약 생성 실패가 전파된다")
     void update_application_status_accept_same_slot_concurrent_fail() {
         User mentor = User.builder()
@@ -250,11 +303,12 @@ public class ApplicationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.OPEN)
                 .build();
 

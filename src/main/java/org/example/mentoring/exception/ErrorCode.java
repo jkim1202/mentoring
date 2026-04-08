@@ -11,6 +11,7 @@ public enum ErrorCode {
     APPLICATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "APPLICATION_002", "해당 신청이 이미 존재합니다."),
     APPLICATION_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "APPLICATION_003", "신청 상태를 변경할 수 없습니다."),
     APPLICATION_NOT_BELONG_TO_MENTOR(HttpStatus.FORBIDDEN, "APPLICATION_004", "신청이 멘토의 것이 아닙니다."),
+    APPLICATION_ACCEPT_EXPIRED(HttpStatus.BAD_REQUEST, "APPLICATION_005", "이미 시작 시간이 지난 신청은 수락할 수 없습니다."),
 
     AUTH_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_001", "로그인 정보가 일치하지 않습니다."),
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_002", "유효하지 않은 토큰입니다."),

@@ -26,6 +26,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 public class ApplicationService {
     private final ApplicationRepository applicationRepository;
@@ -50,27 +52,20 @@ public class ApplicationService {
 
     @Transactional
     public ApplicationCreateResponseDto createApplication(ApplicationCreateRequestDto req, MentoringUserDetails userDetails) {
-        User mentee = userRepository.findById(userDetails.getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User mentee = findUserById(userDetails.getId());
+        Listing listing = findListingById(req.listingId());
+        Slot slot = findSlotById(req.slotId());
 
-        Listing listing = listingRepository.findById(req.listingId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
+        validateSlotBelongsToListing(slot, listing.getId());
+        validateSlotNotBooked(slot);
+        validateNoAppliedApplication(mentee.getId(), req.slotId());
 
-        Slot slot = slotRepository.findById(req.slotId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
-
-        // slot listing 매핑 확인
-        if (!slot.getListing().getId().equals(listing.getId()))
-            throw new BusinessException(ErrorCode.SLOT_NOT_BELONG_TO_LISTING);
-
-        // slot 예약 상태 확인
-        if (slot.getStatus() == SlotStatus.BOOKED) throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
-
-        // 중복 신청 방지
-        if (applicationRepository.existsByMenteeIdAndSlotIdAndStatus(mentee.getId(), req.slotId(), ApplicationStatus.APPLIED))
-            throw new BusinessException(ErrorCode.APPLICATION_ALREADY_EXISTS);
-
-        Application application = Application.builder().mentee(mentee).listing(listing).slot(slot).message(req.message()).build();
+        Application application = Application.builder()
+                .mentee(mentee)
+                .listing(listing)
+                .slot(slot)
+                .message(req.message())
+                .build();
 
         applicationRepository.save(application);
         return ApplicationCreateResponseDto.from(application);
@@ -78,25 +73,15 @@ public class ApplicationService {
 
     @Transactional
     public ApplicationStatusResponseDto updateApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
-        Application application = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+        Application application = findApplicationById(applicationId);
 
-        Long userId = userDetails.getId();
+        validateUserExists(userDetails.getId());
+        validateMentorAuthority(application, userDetails);
 
-        if(!userRepository.existsById(userId))
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-
-        if (!application.getListing().getMentor().getId().equals(userId))
-            throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
-
-        application.changeStatus(applicationStatus);
-
-        applicationRepository.save(application);
-
-        // Application ACCEPTED -> Slot BOOKED, Reservation PENDING_PAYMENT
-        if (applicationStatus == ApplicationStatus.ACCEPTED) {
-            // Reservation 생성
-            reservationService.createReservation(application);
+        switch (applicationStatus) {
+            case ACCEPTED -> acceptApplication(application);
+            case REJECTED -> rejectApplication(application);
+            default -> application.changeStatus(applicationStatus);
         }
 
         return new ApplicationStatusResponseDto(applicationId, applicationStatus);
@@ -143,5 +128,67 @@ public class ApplicationService {
             );
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Listing findListingById(Long listingId) {
+        return listingRepository.findById(listingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
+    }
+
+    private Slot findSlotById(Long slotId) {
+        return slotRepository.findById(slotId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+    }
+
+    private Application findApplicationById(Long applicationId) {
+        return applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+    }
+
+    private void validateSlotBelongsToListing(Slot slot, Long listingId) {
+        if (!slot.getListing().getId().equals(listingId))
+            throw new BusinessException(ErrorCode.SLOT_NOT_BELONG_TO_LISTING);
+    }
+
+    private void validateSlotNotBooked(Slot slot) {
+        if (slot.getStatus() == SlotStatus.BOOKED)
+            throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
+    }
+
+    private void validateNoAppliedApplication(Long menteeId, Long slotId) {
+        if (applicationRepository.existsByMenteeIdAndSlotIdAndStatus(menteeId, slotId, ApplicationStatus.APPLIED))
+            throw new BusinessException(ErrorCode.APPLICATION_ALREADY_EXISTS);
+    }
+
+    private void validateUserExists(Long userId) {
+        if (!userRepository.existsById(userId))
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    private void validateMentorAuthority(Application application, MentoringUserDetails userDetails) {
+        if (!application.getListing().getMentor().getId().equals(userDetails.getId()))
+            throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
+    }
+
+    private void acceptApplication(Application application) {
+        application.changeStatus(ApplicationStatus.ACCEPTED);
+        validateApplicationSlotNotStarted(application);
+        applicationRepository.save(application);
+        reservationService.createReservation(application);
+    }
+
+    private void rejectApplication(Application application) {
+        application.changeStatus(ApplicationStatus.REJECTED);
+        applicationRepository.save(application);
+    }
+
+    private void validateApplicationSlotNotStarted(Application application) {
+        if (!application.getSlot().getStartAt().isAfter(LocalDateTime.now()))
+            throw new BusinessException(ErrorCode.APPLICATION_ACCEPT_EXPIRED);
     }
 }

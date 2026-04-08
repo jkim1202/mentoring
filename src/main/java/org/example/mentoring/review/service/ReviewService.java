@@ -51,7 +51,7 @@ public class ReviewService {
                 .reservation(reservation)
                 .listing(listing)
                 .reviewer(reviewer)
-                .rating(reviewCreateRequestDto.rating())
+                .rating(reviewCreateRequestDto.rating().byteValue())
                 .content(reviewCreateRequestDto.content())
                 .build();
 

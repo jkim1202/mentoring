@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
@@ -38,6 +39,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,6 +63,9 @@ public class ApplicationControllerTest {
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
     @DisplayName("신청 성공")
@@ -127,6 +132,18 @@ public class ApplicationControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("SLOT_002"));
+    }
+
+    @Test
+    @DisplayName("시작 시간이 지난 신청 수락 실패")
+    void accept_application_expired_fail() throws Exception {
+        given(applicationService.updateApplicationStatus(any(), any(), any()))
+                .willThrow(new BusinessException(ErrorCode.APPLICATION_ACCEPT_EXPIRED));
+
+        mockMvc.perform(patch("/api/applications/{id}/accept", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("APPLICATION_005"));
     }
 
     @Test

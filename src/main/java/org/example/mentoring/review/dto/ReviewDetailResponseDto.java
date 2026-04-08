@@ -23,7 +23,7 @@ public record ReviewDetailResponseDto(
                 review.getListing().getTitle(),
                 review.getReviewer().getId(),
                 review.getReviewer().getNickname(),
-                review.getRating(),
+                review.getRating().intValue(),
                 review.getContent(),
                 review.getCreatedAt()
         );
