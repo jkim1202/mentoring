@@ -121,6 +121,42 @@ public class ReservationControllerTest {
     }
 
     @Test
+    @DisplayName("예약 입금 표시 실패(입금 가능 시간 만료)")
+    void mark_paid_expired_fail() throws Exception {
+        given(reservationService.markPaid(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_PAYMENT_EXPIRED));
+
+        mockMvc.perform(patch("/api/reservations/{id}/mark-paid", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RESERVATION_007"));
+    }
+
+    @Test
+    @DisplayName("예약 입금 표시 실패(예약 시작 시간 경과)")
+    void mark_paid_started_fail() throws Exception {
+        given(reservationService.markPaid(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_START_AT_EXPIRED));
+
+        mockMvc.perform(patch("/api/reservations/{id}/mark-paid", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RESERVATION_008"));
+    }
+
+    @Test
+    @DisplayName("예약 입금 확인 실패(예약 시작 시간 경과)")
+    void confirm_paid_started_fail() throws Exception {
+        given(reservationService.confirmPaid(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_START_AT_EXPIRED));
+
+        mockMvc.perform(patch("/api/reservations/{id}/confirm-paid", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RESERVATION_008"));
+    }
+
+    @Test
     @DisplayName("예약 취소 성공")
     void cancel_reservation_success() throws Exception {
         ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(

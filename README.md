@@ -72,9 +72,18 @@
 - `PATCH /api/reservations/{id}/cancel`
 - `PATCH /api/reservations/{id}/complete`
 - `GET /api/reservations`
+- `POST /api/reservations/{reservationId}/messages`
+- `GET /api/reservations/{reservationId}/messages`
 - 예약 상태 변경 응답에 현재 `slotStatus` 포함
 - `menteePaidMarkedAt`, `mentorPaidConfirmedAt` 필드로 결제 표시/확인 시각 기록
 - 예약은 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
+
+### Review
+- `POST /api/reviews`
+- `GET /api/reviews/{id}`
+- `GET /api/reviews`
+- 완료된 예약에만 리뷰 작성 가능
+- 예약당 리뷰 1개만 생성 가능
 
 ## 상태 전이
 ### ListingStatus
@@ -235,6 +244,19 @@ erDiagram
   - `Reservation`은 `CANCELED`로 전이
   - `Slot`은 다시 `OPEN`으로 복귀
 - 멘티가 취소 가능 시간을 넘기면 `RESERVATION_CANCEL_DEADLINE_EXCEEDED`를 반환한다
+
+## 예약 입금 만료 정책
+- `PENDING_PAYMENT` 예약은 아래 두 경우 만료로 본다.
+  - 예약 생성 후 1시간 이내에 멘티가 입금 표시(`mark-paid`)를 하지 않은 경우
+  - 예약 시작 시각(`startAt`)에 도달했거나 지난 경우
+- `mark-paid`
+  - 예약 생성 후 1시간 이내에만 가능
+  - `startAt` 이전에만 가능
+- `confirm-paid`
+  - 멘토만 가능
+  - `startAt` 이전에만 가능
+  - 예약 생성 후 1시간 제한은 적용하지 않는다
+- 현재는 만료 예약을 자동으로 `CANCELED` 처리하지 않고, 액션 시점에서 결제/확정 진행만 차단한다
 
 ## 데이터베이스 마이그레이션
 Flyway로 스키마를 버전 관리한다.
@@ -458,7 +480,6 @@ Swagger/OpenAPI 의존성은 추가되어 있다.
 - Reservation 통합 테스트 보강
   - 동일 슬롯 동시 수락 경쟁 상황
   - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
-- 시작 시간 지난 `PENDING_PAYMENT` 처리 정책 확정
 - 채팅 MVP 구현
   - reservation 당 1 message thread
   - 예약 당사자만 접근 가능

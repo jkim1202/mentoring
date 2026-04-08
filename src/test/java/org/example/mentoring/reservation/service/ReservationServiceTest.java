@@ -135,11 +135,13 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
+        LocalDateTime endAt = LocalDateTime.now().plusHours(3);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(endAt)
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -161,6 +163,7 @@ public class ReservationServiceTest {
                 .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
                 .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
                 .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
@@ -354,11 +357,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -454,11 +458,12 @@ public class ReservationServiceTest {
                 .description("설명")
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -530,11 +535,12 @@ public class ReservationServiceTest {
                 .description("설명")
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -638,11 +644,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -664,6 +671,7 @@ public class ReservationServiceTest {
                 .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
                 .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
                 .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
@@ -697,11 +705,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -720,9 +729,10 @@ public class ReservationServiceTest {
                 .slot(slot)
                 .mentor(mentor)
                 .mentee(mentee)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
                 .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
@@ -739,6 +749,156 @@ public class ReservationServiceTest {
         assertThat(result.partnerNickname()).isEqualTo(mentee.getNickname());
         assertThat(reservation.getMentorPaidConfirmedAt()).isNotNull();
         then(reservationRepository).should().save(reservation);
+    }
+
+    @Test
+    @DisplayName("멘티 입금 표시는 예약 생성 1시간이 지나면 실패")
+    void mark_paid_fails_when_payment_window_expired() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.markPaid(10000L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_PAYMENT_EXPIRED));
+    }
+
+    @Test
+    @DisplayName("멘티 입금 표시는 예약 시작 시간이 지나면 실패")
+    void mark_paid_fails_when_reservation_already_started() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().minusMinutes(1);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.markPaid(10000L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_START_AT_EXPIRED));
+    }
+
+    @Test
+    @DisplayName("멘토 입금 확인은 예약 시작 시간이 지나면 실패")
+    void confirm_paid_fails_when_reservation_already_started() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().minusMinutes(1);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.confirmPaid(10000L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_START_AT_EXPIRED));
     }
 
     @Test
@@ -759,11 +919,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -816,11 +977,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -839,9 +1001,10 @@ public class ReservationServiceTest {
                 .slot(slot)
                 .mentor(mentor)
                 .mentee(mentee)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
                 .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
@@ -875,11 +1038,12 @@ public class ReservationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED)
                 .build();
 
@@ -898,9 +1062,10 @@ public class ReservationServiceTest {
                 .slot(slot)
                 .mentor(mentor)
                 .mentee(mentee)
-                .startAt(LocalDateTime.of(2026, 3, 15, 10, 0))
-                .endAt(LocalDateTime.of(2026, 3, 15, 11, 0))
+                .startAt(slot.getStartAt())
+                .endAt(slot.getEndAt())
                 .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
