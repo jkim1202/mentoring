@@ -5,7 +5,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
-import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.listing.service.SlotService;
 import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
@@ -33,27 +33,22 @@ public class ReservationService {
     private static final long MENTEE_CANCEL_DEADLINE_HOURS = 24L;
 
     private final ReservationRepository reservationRepository;
-    private final SlotRepository slotRepository;
+    private final SlotService slotService;
 
     @Autowired
-    public ReservationService(ReservationRepository reservationRepository, SlotRepository slotRepository) {
+    public ReservationService(ReservationRepository reservationRepository, SlotService slotService) {
         this.reservationRepository = reservationRepository;
-        this.slotRepository = slotRepository;
+        this.slotService = slotService;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void createReservation(Application application) {
-        // slot 락 조회
-        Slot slot = slotRepository.findByIdForUpdate(application.getSlot().getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+        Slot slot = slotService.findSlotByIdForUpdate(application.getSlot().getId());
 
         Listing listing = application.getListing();
 
-        // 현재 active인 slot이 이미 존재하는지 확인
         validateNoActiveReservation(slot.getId());
-
-        // slot 상태 변경 -> BOOKED
-        slot.book();
+        slotService.bookSlot(slot);
 
         reservationRepository.save(Reservation.builder()
                 .mentee(application.getMentee())
@@ -73,7 +68,7 @@ public class ReservationService {
         validateCancelAuthorityAndDeadline(reservation, userDetails);
 
         reservation.changeStatus(ReservationStatus.CANCELED);
-        reservation.getSlot().reopen();
+        slotService.releaseSlot(reservation.getSlot());
 
         reservationRepository.save(reservation);
 

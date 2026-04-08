@@ -39,7 +39,7 @@ public class Slot {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SlotStatus status; // OPEN, BOOKED
+    private SlotStatus status; // OPEN, BOOKED, EXPIRED
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -60,5 +60,17 @@ public class Slot {
         } else  {
             throw new BusinessException(ErrorCode.SLOT_INVALID_STATUS_TRANSITION);
         }
+    }
+
+    public void expire() {
+        if (this.status.canChangeTo(SlotStatus.EXPIRED)) {
+            this.status = SlotStatus.EXPIRED;
+        } else {
+            throw new BusinessException(ErrorCode.SLOT_INVALID_STATUS_TRANSITION);
+        }
+    }
+
+    public boolean isStarted() {
+        return !LocalDateTime.now().isBefore(this.startAt);
     }
 }

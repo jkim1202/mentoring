@@ -181,7 +181,7 @@ public class ApplicationReservationIntegrationTest {
         Slot slot = slotRepository.findById(fixture.slot().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
 
-        assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.EXPIRED);
         assertThat(reservationRepository.findByApplicationId(fixture.application().getId())).isNotPresent();
     }
 
