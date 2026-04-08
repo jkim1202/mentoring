@@ -19,7 +19,7 @@ import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.ListingRepository;
-import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.listing.service.SlotService;
 import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
@@ -57,7 +57,7 @@ public class ApplicationServiceTest {
     @Mock
     private ListingRepository listingRepository;
     @Mock
-    private SlotRepository slotRepository;
+    private SlotService slotService;
     @Mock
     private ReservationService reservationService;
 
@@ -79,11 +79,12 @@ public class ApplicationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 14, 0, 0))
-                .endAt(LocalDateTime.of(2026, 3, 14, 1, 30))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.OPEN)
                 .build();
 
@@ -94,7 +95,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotById(100L)).willReturn(slot);
         given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
                 2L,
                 100L,
@@ -129,11 +130,12 @@ public class ApplicationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 14, 0, 0))
-                .endAt(LocalDateTime.of(2026, 3, 14, 1, 30))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.OPEN)
                 .build();
 
@@ -144,7 +146,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotById(100L)).willReturn(slot);
         given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
                 2L,
                 100L,
@@ -197,7 +199,9 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(requestListing));
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotById(100L)).willReturn(slot);
+        willThrow(new BusinessException(ErrorCode.SLOT_NOT_BELONG_TO_LISTING))
+                .given(slotService).validateSlotBelongsToListing(slot, 10L);
 
         assertThatThrownBy(() -> applicationService.createApplication(req, userDetails))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
@@ -282,6 +286,8 @@ public class ApplicationServiceTest {
 
         given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
+        willThrow(new BusinessException(ErrorCode.APPLICATION_ACCEPT_EXPIRED))
+                .given(slotService).validateSlotAcceptable(slot);
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
@@ -387,11 +393,12 @@ public class ApplicationServiceTest {
                 .mentor(mentor)
                 .build();
 
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
         Slot slot = Slot.builder()
                 .id(100L)
                 .listing(listing)
-                .startAt(LocalDateTime.of(2026, 3, 14, 0, 0))
-                .endAt(LocalDateTime.of(2026, 3, 14, 1, 0))
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
                 .status(SlotStatus.BOOKED) // 이미 예약된 슬롯
                 .build();
 
@@ -404,11 +411,58 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotById(100L)).willReturn(slot);
+        willThrow(new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED))
+                .given(slotService).validateSlotAvailableForApplication(slot);
 
         assertThatThrownBy(() -> applicationService.createApplication(req, userDetails))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SLOT_ALREADY_BOOKED));
+    }
+
+    @Test
+    @DisplayName("시작 시간이 지난 슬롯이면 신청 생성 실패")
+    void create_application_expired_slot_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().minusMinutes(1);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        ApplicationCreateRequestDto req =
+                new ApplicationCreateRequestDto(10L, 100L, "신청 메시지");
+
+        given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
+        given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
+        given(slotService.findSlotById(100L)).willReturn(slot);
+        willThrow(new BusinessException(ErrorCode.SLOT_EXPIRED))
+                .given(slotService).validateSlotAvailableForApplication(slot);
+
+        assertThatThrownBy(() -> applicationService.createApplication(req, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SLOT_EXPIRED));
     }
 
     @Test

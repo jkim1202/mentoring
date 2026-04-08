@@ -8,7 +8,7 @@ import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
-import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.listing.service.SlotService;
 import org.example.mentoring.reservation.dto.ReservationDetailResponseDto;
 import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
@@ -41,8 +41,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
@@ -55,7 +54,7 @@ public class ReservationServiceTest {
     private ReservationRepository reservationRepository;
 
     @Mock
-    private SlotRepository slotRepository;
+    private SlotService slotService;
 
     @Captor
     private ArgumentCaptor<Reservation> reservationCaptor;
@@ -94,7 +93,7 @@ public class ReservationServiceTest {
                 .status(ApplicationStatus.ACCEPTED)
                 .build();
 
-        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(reservationRepository.existsBySlotIdAndStatusIn(100L,
                 List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
                 .willReturn(false);
@@ -171,6 +170,10 @@ public class ReservationServiceTest {
         );
 
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+        willAnswer(invocation -> {
+            slot.reopen();
+            return null;
+        }).given(slotService).releaseSlot(slot);
 
         ReservationSummaryResponseDto result =
                 reservationService.cancelReservation(10000L, userDetails);
@@ -191,7 +194,7 @@ public class ReservationServiceTest {
 
 
         // 재예약
-        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(reservationRepository.existsBySlotIdAndStatusIn(100L,
                 List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
                 .willReturn(false);
@@ -328,6 +331,10 @@ public class ReservationServiceTest {
         );
 
         given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+        willAnswer(invocation -> {
+            slot.reopen();
+            return null;
+        }).given(slotService).releaseSlot(slot);
 
         ReservationSummaryResponseDto result = reservationService.cancelReservation(10000L, mentorDetails);
 
@@ -613,7 +620,7 @@ public class ReservationServiceTest {
                 .status(ApplicationStatus.ACCEPTED)
                 .build();
 
-        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(reservationRepository.existsBySlotIdAndStatusIn(100L,
                 List.of(ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED)))
                 .willReturn(true);

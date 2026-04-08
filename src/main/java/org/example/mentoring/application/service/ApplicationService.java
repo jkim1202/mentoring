@@ -11,9 +11,8 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.Slot;
-import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.ListingRepository;
-import org.example.mentoring.listing.repository.SlotRepository;
+import org.example.mentoring.listing.service.SlotService;
 import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
@@ -26,27 +25,25 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 @Service
 public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final ListingRepository listingRepository;
-    private final SlotRepository slotRepository;
+    private final SlotService slotService;
     private final ReservationService reservationService;
 
     @Autowired
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ListingRepository listingRepository,
-                              SlotRepository slotRepository,
+                              SlotService slotService,
                               ReservationService reservationService
     ) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;
-        this.slotRepository = slotRepository;
+        this.slotService = slotService;
         this.reservationService = reservationService;
     }
 
@@ -54,10 +51,10 @@ public class ApplicationService {
     public ApplicationCreateResponseDto createApplication(ApplicationCreateRequestDto req, MentoringUserDetails userDetails) {
         User mentee = findUserById(userDetails.getId());
         Listing listing = findListingById(req.listingId());
-        Slot slot = findSlotById(req.slotId());
+        Slot slot = slotService.findSlotById(req.slotId());
 
-        validateSlotBelongsToListing(slot, listing.getId());
-        validateSlotNotBooked(slot);
+        slotService.validateSlotBelongsToListing(slot, listing.getId());
+        slotService.validateSlotAvailableForApplication(slot);
         validateNoAppliedApplication(mentee.getId(), req.slotId());
 
         Application application = Application.builder()
@@ -140,24 +137,9 @@ public class ApplicationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
     }
 
-    private Slot findSlotById(Long slotId) {
-        return slotRepository.findById(slotId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
-    }
-
     private Application findApplicationById(Long applicationId) {
         return applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
-    }
-
-    private void validateSlotBelongsToListing(Slot slot, Long listingId) {
-        if (!slot.getListing().getId().equals(listingId))
-            throw new BusinessException(ErrorCode.SLOT_NOT_BELONG_TO_LISTING);
-    }
-
-    private void validateSlotNotBooked(Slot slot) {
-        if (slot.getStatus() == SlotStatus.BOOKED)
-            throw new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED);
     }
 
     private void validateNoAppliedApplication(Long menteeId, Long slotId) {
@@ -176,8 +158,8 @@ public class ApplicationService {
     }
 
     private void acceptApplication(Application application) {
+        validateApplicationSlotNotStarted(application.getSlot());
         application.changeStatus(ApplicationStatus.ACCEPTED);
-        validateApplicationSlotNotStarted(application);
         applicationRepository.save(application);
         reservationService.createReservation(application);
     }
@@ -187,8 +169,7 @@ public class ApplicationService {
         applicationRepository.save(application);
     }
 
-    private void validateApplicationSlotNotStarted(Application application) {
-        if (!application.getSlot().getStartAt().isAfter(LocalDateTime.now()))
-            throw new BusinessException(ErrorCode.APPLICATION_ACCEPT_EXPIRED);
+    private void validateApplicationSlotNotStarted(Slot slot) {
+        slotService.validateSlotAcceptable(slot);
     }
 }
