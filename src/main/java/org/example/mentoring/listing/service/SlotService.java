@@ -1,5 +1,6 @@
 package org.example.mentoring.listing.service;
 
+import org.example.mentoring.application.repository.ApplicationRepository;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Slot;
@@ -68,7 +69,6 @@ public class SlotService {
             expireIfStarted(slot);
             return;
         }
-
         slot.reopen();
     }
 

@@ -1132,18 +1132,13 @@ public class ReservationServiceTest {
 
         given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .willReturn(List.of(reservation));
-        willAnswer(invocation -> {
-            slot.reopen();
-            return null;
-        }).given(slotService).releaseSlot(slot);
 
-        int expiredCount = reservationService.expirePendingReservations();
+        Slot expiredReservationSlot = reservationService.expirePendingReservationsAndReturnSlots().getFirst();
 
-        assertThat(expiredCount).isEqualTo(1);
+        assertThat(expiredReservationSlot.getId()).isEqualTo(slot.getId());
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
-        assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.BOOKED);
         then(reservationRepository).should().saveAll(List.of(reservation));
-        then(slotService).should().releaseSlot(slot);
     }
 
     @Test
@@ -1187,18 +1182,13 @@ public class ReservationServiceTest {
 
         given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .willReturn(List.of(reservation));
-        willAnswer(invocation -> {
-            slot.expire();
-            return null;
-        }).given(slotService).expireIfStarted(slot);
 
-        int expiredCount = reservationService.expirePendingReservations();
+        Slot expiredReservationSlot = reservationService.expirePendingReservationsAndReturnSlots().getFirst();
 
-        assertThat(expiredCount).isEqualTo(1);
+        assertThat(expiredReservationSlot.getId()).isEqualTo(slot.getId());
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
-        assertThat(slot.getStatus()).isEqualTo(SlotStatus.EXPIRED);
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.BOOKED);
         then(reservationRepository).should().saveAll(List.of(reservation));
-        then(slotService).should().expireIfStarted(slot);
     }
 
     @Test
@@ -1207,9 +1197,9 @@ public class ReservationServiceTest {
         given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .willReturn(List.of());
 
-        int expiredCount = reservationService.expirePendingReservations();
+        List<Slot> expiredReservationSlotList = reservationService.expirePendingReservationsAndReturnSlots();
 
-        assertThat(expiredCount).isZero();
+        assertThat(expiredReservationSlotList).isEmpty();
         then(reservationRepository).should().saveAll(List.of());
     }
 }

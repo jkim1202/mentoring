@@ -1,5 +1,6 @@
 package org.example.mentoring.application.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.mentoring.application.dto.*;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.application.entity.ApplicationStatus;
@@ -25,6 +26,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
+@Slf4j
 @Service
 public class ApplicationService {
     private final ApplicationRepository applicationRepository;
@@ -116,6 +120,19 @@ public class ApplicationService {
             case MENTEE ->  applicationRepository.searchByMenteeId(filter, pageable, loginUserId);
         };
         return applications.map(res -> ApplicationSummaryResponseDto.from(res, loginUserId));
+    }
+
+    public void cancelAppliedApplicationsByExpiredSlots(List<Slot> expiredSlots){
+        List<Long> slotIds = expiredSlots
+                .stream()
+                .map(Slot::getId)
+                .toList();
+
+        List<Application> applications = applicationRepository.findAppliedApplicationsBySlotIds(slotIds);
+        for (Application application : applications)
+            application.changeStatus(ApplicationStatus.CANCELED);
+
+        log.info("Canceled applications by slot expiry count={}", applications.size());
     }
 
     private Sort toSort(ApplicationSort sort) {

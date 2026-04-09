@@ -1,5 +1,6 @@
 package org.example.mentoring.reservation.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
@@ -25,10 +26,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class ReservationService {
     private static final long MENTEE_CANCEL_DEADLINE_HOURS = 24L;
@@ -155,24 +156,27 @@ public class ReservationService {
         };
     }
 
-    @Transactional
-    public int expirePendingReservations(){
+    /**
+     * Return : 만료된 Reservation들이 점유했던 Slot들
+     */
+    public List<Slot> expirePendingReservationsAndReturnSlots(){
         final LocalDateTime now = LocalDateTime.now();
         List<Reservation> reservations =
                 reservationRepository.findPendingReservationsToExpire(now, now.minusHours(1));
-        reservations.forEach(
-                reservation ->{
-                    reservation.changeStatus(ReservationStatus.CANCELED);
-                    if(now.isBefore(reservation.getStartAt()))
-                        slotService.releaseSlot(reservation.getSlot());
-                    else
-                        slotService.expireIfStarted(reservation.getSlot());
-                }
-        );
+
+        log.info("Expired reservation count:{} ", reservations.size());
+
+        for(Reservation reservation : reservations){
+            reservation.changeStatus(ReservationStatus.CANCELED);
+        }
 
         reservationRepository.saveAll(reservations);
 
-        return reservations.size();
+        // 예약된 Slot Id List 반환
+        return reservations
+                .stream()
+                .map(Reservation::getSlot)
+                .toList();
     }
 
     private void validateCancelAuthorityAndDeadline(Reservation reservation, MentoringUserDetails userDetails) {
