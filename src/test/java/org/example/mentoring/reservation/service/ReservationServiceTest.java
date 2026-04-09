@@ -1089,4 +1089,127 @@ public class ReservationServiceTest {
         assertThat(reservation.getMenteePaidMarkedAt()).isNotNull();
         then(reservationRepository).should().save(reservation);
     }
+
+    @Test
+    @DisplayName("만료 대상 pending 예약은 취소되고 미래 슬롯은 OPEN으로 복귀한다")
+    void expire_pending_reservations_reopens_future_slot() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startAt = now.plusHours(2);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(now.minusHours(2))
+                .build();
+
+        given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of(reservation));
+        willAnswer(invocation -> {
+            slot.reopen();
+            return null;
+        }).given(slotService).releaseSlot(slot);
+
+        int expiredCount = reservationService.expirePendingReservations();
+
+        assertThat(expiredCount).isEqualTo(1);
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.OPEN);
+        then(reservationRepository).should().saveAll(List.of(reservation));
+        then(slotService).should().releaseSlot(slot);
+    }
+
+    @Test
+    @DisplayName("시작 시간이 지난 pending 예약은 취소되고 슬롯은 EXPIRED 처리된다")
+    void expire_pending_reservations_expires_started_slot() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().minusMinutes(1);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
+                .build();
+
+        given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of(reservation));
+        willAnswer(invocation -> {
+            slot.expire();
+            return null;
+        }).given(slotService).expireIfStarted(slot);
+
+        int expiredCount = reservationService.expirePendingReservations();
+
+        assertThat(expiredCount).isEqualTo(1);
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(slot.getStatus()).isEqualTo(SlotStatus.EXPIRED);
+        then(reservationRepository).should().saveAll(List.of(reservation));
+        then(slotService).should().expireIfStarted(slot);
+    }
+
+    @Test
+    @DisplayName("만료 대상이 없으면 빈 목록을 저장한다")
+    void expire_pending_reservations_handles_empty_target() {
+        given(reservationRepository.findPendingReservationsToExpire(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of());
+
+        int expiredCount = reservationService.expirePendingReservations();
+
+        assertThat(expiredCount).isZero();
+        then(reservationRepository).should().saveAll(List.of());
+    }
 }
