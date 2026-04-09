@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -152,6 +153,26 @@ public class ReservationService {
             case MENTEE -> reservationRepository.searchByMenteeId(filter, pageable, loginUserId)
                     .map(res -> ReservationSummaryResponseDto.from(res, userDetails.getId(), res.getSlot().getStatus()));
         };
+    }
+
+    @Transactional
+    public int expirePendingReservations(){
+        final LocalDateTime now = LocalDateTime.now();
+        List<Reservation> reservations =
+                reservationRepository.findPendingReservationsToExpire(now, now.minusHours(1));
+        reservations.forEach(
+                reservation ->{
+                    reservation.changeStatus(ReservationStatus.CANCELED);
+                    if(now.isBefore(reservation.getStartAt()))
+                        slotService.releaseSlot(reservation.getSlot());
+                    else
+                        slotService.expireIfStarted(reservation.getSlot());
+                }
+        );
+
+        reservationRepository.saveAll(reservations);
+
+        return reservations.size();
     }
 
     private void validateCancelAuthorityAndDeadline(Reservation reservation, MentoringUserDetails userDetails) {
