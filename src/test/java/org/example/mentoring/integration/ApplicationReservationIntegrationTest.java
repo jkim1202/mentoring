@@ -10,6 +10,7 @@ import org.example.mentoring.application.repository.ApplicationRepository;
 import org.example.mentoring.application.service.ApplicationService;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
+import org.example.mentoring.expiration.ExpirationUseCase;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.entity.Slot;
@@ -29,9 +30,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -68,6 +72,12 @@ public class ApplicationReservationIntegrationTest {
     ListingRepository listingRepository;
     @Autowired
     private ReservationService reservationService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private ExpirationUseCase expirationUseCase;
+    @Autowired
+    private EntityManager entityManager;
 
     private ApplicationFixture createApplicationFixture() {
         return createApplicationFixture(LocalDateTime.now().plusDays(3).withMinute(0).withSecond(0).withNano(0));
@@ -302,5 +312,101 @@ public class ApplicationReservationIntegrationTest {
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.PENDING_PAYMENT);
         assertThat(reservation.getSlot().getStatus()).isEqualTo(SlotStatus.BOOKED);
         assertThat(reservationRepository.findByApplicationId(application2.getId())).isEmpty();
+    }
+
+    @Test
+    void expire_pending_payment_reservation_reopens_future_slot(){
+        // given: mentor, mentee, listing, slot, application, mentorDetails
+        ApplicationFixture fixture = createApplicationFixture();
+
+        // when: 신청 수락 -> reservation 생성 -> created_at을 과거로 조정 후 expiration 실행
+        applicationService.updateApplicationStatus(
+                fixture.application().getId(),
+                fixture.mentorDetails(),
+                ApplicationStatus.ACCEPTED
+        );
+
+        Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        jdbcTemplate.update(
+                "update reservations set created_at = ? where id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusHours(2)),
+                reservation.getId()
+        );
+
+        entityManager.clear();
+
+        expirationUseCase.execute();
+
+        Reservation expiredReservation = reservationRepository.findById(reservation.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+        Slot reopenedSlot = slotRepository.findById(fixture.slot().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+
+        // then: 예약 취소, 슬롯 재활성화
+        assertThat(expiredReservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(reopenedSlot.getStatus()).isEqualTo(SlotStatus.OPEN);
+    }
+
+    @Test
+    void expire_pending_payment_reservation_expires_started_slot_and_cancels_applied_applications(){
+        // given: mentor, mentee, listing, slot, application, mentorDetails
+        ApplicationFixture fixture = createApplicationFixture();
+
+        Application secondApplication = applicationRepository.save(
+                Application.builder()
+                        .listing(fixture.listing())
+                        .slot(fixture.slot())
+                        .mentee(fixture.mentee())
+                        .message("두번째 신청합니다")
+                        .status(ApplicationStatus.APPLIED)
+                        .build()
+        );
+
+        // when: 신청 수락 -> reservation 생성 -> reservation/slot 시간을 과거로 조정 후 expiration 실행
+        applicationService.updateApplicationStatus(
+                fixture.application().getId(),
+                fixture.mentorDetails(),
+                ApplicationStatus.ACCEPTED
+        );
+
+        Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        LocalDateTime pastStartAt = LocalDateTime.now().minusHours(2);
+        LocalDateTime pastEndAt = pastStartAt.plusHours(1);
+
+        jdbcTemplate.update(
+                "update reservations set start_at = ?, end_at = ? where id = ?",
+                Timestamp.valueOf(pastStartAt),
+                Timestamp.valueOf(pastEndAt),
+                reservation.getId()
+        );
+
+        jdbcTemplate.update(
+                "update slots set start_at = ?, end_at = ? where id = ?",
+                Timestamp.valueOf(pastStartAt),
+                Timestamp.valueOf(pastEndAt),
+                fixture.slot().getId()
+        );
+
+        entityManager.clear();
+
+        expirationUseCase.execute();
+
+        Reservation expiredReservation = reservationRepository.findById(reservation.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        Slot expiredSlot = slotRepository.findById(fixture.slot().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
+
+        Application canceledApplication = applicationRepository.findById(secondApplication.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+
+        // then: 예약 취소, 슬롯 만료, 슬롯에 신청 취소
+        assertThat(expiredReservation.getStatus()).isEqualTo(ReservationStatus.CANCELED);
+        assertThat(expiredSlot.getStatus()).isEqualTo(SlotStatus.EXPIRED);
+        assertThat(canceledApplication.getStatus()).isEqualTo(ApplicationStatus.CANCELED);
     }
 }
