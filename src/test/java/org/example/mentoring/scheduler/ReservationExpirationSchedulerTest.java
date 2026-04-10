@@ -1,6 +1,6 @@
 package org.example.mentoring.scheduler;
 
-import org.example.mentoring.reservation.service.ReservationService;
+import org.example.mentoring.expiration.ExpirationUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +14,7 @@ import static org.mockito.BDDMockito.then;
 class ReservationExpirationSchedulerTest {
 
     @Mock
-    private ReservationService reservationService;
+    private ExpirationUseCase expirationUseCase;
 
     @InjectMocks
     private ReservationExpirationScheduler reservationExpirationScheduler;
@@ -24,6 +24,6 @@ class ReservationExpirationSchedulerTest {
     void schedule_calls_expire_pending_reservations() {
         reservationExpirationScheduler.expirePendingReservations();
 
-        then(reservationService).should().expirePendingReservations();
+        then(expirationUseCase).should().execute();
     }
 }

@@ -23,8 +23,9 @@
 - 활성 예약이 존재하는 슬롯에는 새 신청/수락을 진행할 수 없다.
 - 신청 수락 시 예약이 생성되며, 예약 생성과 슬롯 점유는 같은 트랜잭션에서 처리한다.
 - 시작 시간이 지난 슬롯의 신청은 수락할 수 없다.
+- 시작 시간이 지난 슬롯은 `EXPIRED`로 본다.
 - 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서는 같은 슬롯에 중복 예약할 수 없다.
-- 예약이 `CANCELED` 되면 슬롯은 다시 `OPEN`으로 돌아가며, 이후 새 예약 이력을 생성할 수 있다.
+- 예약이 `CANCELED` 되면 미래 슬롯은 `OPEN`, 이미 시작한 슬롯은 `EXPIRED`로 정리한다.
 
 ## 기술 스택
 - Java 21
@@ -93,8 +94,9 @@
 - `DELETED`는 종단 상태
 
 ### SlotStatus
-- `OPEN -> BOOKED`
-- `BOOKED -> OPEN`
+- `OPEN -> BOOKED, EXPIRED`
+- `BOOKED -> OPEN, EXPIRED`
+- `EXPIRED`는 종단 상태
 
 ### ApplicationStatus
 - `APPLIED -> ACCEPTED, REJECTED, CANCELED`
@@ -210,16 +212,18 @@ erDiagram
 
 설계 포인트:
 - `Application -> Reservation`은 1:1 흐름이다.
-- 예약 생성 시 `Slot`은 `BOOKED`로 전이되고, 예약 취소 시 다시 `OPEN`으로 돌아간다.
+- 예약 생성 시 `Slot`은 `BOOKED`로 전이되고, 예약 취소 시 미래 슬롯은 `OPEN`, 시작한 슬롯은 `EXPIRED`로 정리된다.
 - `reservations.active_slot_id UNIQUE`로 활성 예약 상태에서만 같은 슬롯 중복 예약을 막는다.
 - 서비스에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 락으로 먼저 검증하고, DB는 최종 무결성을 보장한다.
 - `Reservation`은 `start_at`, `end_at`을 별도로 저장해 슬롯 변경/삭제 이후에도 예약 시각 이력을 보존한다.
 - 멘티 입금 표시와 멘토 입금 확인은 각각 `mentee_paid_marked_at`, `mentor_paid_confirmed_at`으로 기록한다.
+- 만료 정리처럼 여러 도메인을 함께 건드리는 작업은 도메인 서비스 간 직접 호출 대신 별도 use case 계층에서 조합하는 방향으로 설계한다.
 
 ## 트러블슈팅 요약
 - 예약 취소 후 슬롯 재사용 정책을 적용하는 과정에서 기존 `reservations.slot_id UNIQUE` 제약이 취소 이력까지 막아 같은 슬롯 재예약을 불가능하게 만드는 문제를 확인했다.
 - 이를 해결하기 위해 `slot_id` 절대 unique를 제거하고, 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서만 값이 생기는 `active_slot_id` generated column + unique 제약으로 변경했다.
 - 서비스 레벨에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 비관적 락으로 사전 검증하고, DB는 `active_slot_id` unique 제약으로 최종 정합성을 보장하도록 역할을 분리했다.
+- 만료 처리처럼 `Application`, `Reservation`, `Slot`을 함께 건드리는 흐름은 서비스 간 직접 호출로 풀면 순환 참조와 숨겨진 부수효과가 생길 수 있어, 전용 use case 계층으로 오케스트레이션하는 방향을 다음 단계 설계 기준으로 둔다.
 
 ## 예약 조회 정책
 - 현재 `Reservation`은 반복 수업 패키지가 아니라 **시간/장소가 확정된 1회성 멘토링 일정**으로 본다.
@@ -243,7 +247,8 @@ erDiagram
   - 멘토는 시작 시각과 관계없이 취소 가능
 - 취소 성공 시
   - `Reservation`은 `CANCELED`로 전이
-  - `Slot`은 다시 `OPEN`으로 복귀
+  - 미래 `Slot`은 다시 `OPEN`으로 복귀
+  - 이미 시작한 `Slot`은 `EXPIRED`로 전이
 - 멘티가 취소 가능 시간을 넘기면 `RESERVATION_CANCEL_DEADLINE_EXCEEDED`를 반환한다
 
 ## 예약 입금 만료 정책
@@ -257,7 +262,17 @@ erDiagram
   - 멘토만 가능
   - `startAt` 이전에만 가능
   - 예약 생성 후 1시간 제한은 적용하지 않는다
-- 현재는 만료 예약을 자동으로 `CANCELED` 처리하지 않고, 액션 시점에서 결제/확정 진행만 차단한다
+- 만료 예약은 스케줄러가 주기적으로 찾아 `CANCELED` 처리한다
+- 만료 처리 시
+  - 미래 `Slot`은 `OPEN`
+  - 시작 시간이 지난 `Slot`은 `EXPIRED`
+
+## 만료 처리 설계 메모
+- 예약 만료 스케줄러는 `PENDING_PAYMENT` 예약 중 아래 조건을 만족하는 대상을 정리한다.
+  - `createdAt + 1시간` 경과
+  - `startAt` 도달 또는 경과
+- `Slot`이 `EXPIRED`가 되면 해당 슬롯의 `APPLIED` 신청들도 함께 `CANCELED` 처리해야 한다.
+- 이 흐름은 `SlotService -> ApplicationService` 같은 직접 호출보다, 전용 expiration use case가 `ApplicationService`, `ReservationService`, `SlotService`를 조합하는 구조로 정리하는 방향을 택한다.
 
 ## 데이터베이스 마이그레이션
 Flyway로 스키마를 버전 관리한다.
