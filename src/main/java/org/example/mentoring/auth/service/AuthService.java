@@ -1,6 +1,11 @@
 package org.example.mentoring.auth.service;
 
-import org.example.mentoring.auth.dto.*;
+import org.example.mentoring.auth.dto.LoginRequestDto;
+import org.example.mentoring.auth.dto.LoginResponseDto;
+import org.example.mentoring.auth.dto.RefreshRequestDto;
+import org.example.mentoring.auth.dto.RefreshResponseDto;
+import org.example.mentoring.auth.dto.RegisterRequestDto;
+import org.example.mentoring.auth.dto.RegisterResponseDto;
 import org.example.mentoring.user.entity.Role;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.entity.UserStatus;
@@ -43,7 +48,7 @@ public class AuthService {
     @Transactional
     public RegisterResponseDto register(RegisterRequestDto authRequestDto) {
         // 이메일 중복 확인
-        if(userRepository.findByEmail(authRequestDto.email()).isPresent()) {
+        if (userRepository.findByEmail(authRequestDto.email()).isPresent()) {
             throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
         }
 
@@ -72,7 +77,9 @@ public class AuthService {
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
         UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequestDto.email());
-        if(!userDetails.isEnabled()) throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
+        if (!userDetails.isEnabled()) {
+            throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
+        }
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
 
@@ -85,8 +92,9 @@ public class AuthService {
         String email = jwtTokenProvider.getEmailFromRefreshToken(refreshToken);
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-        if(!jwtTokenProvider.validateRefreshToken(refreshToken, userDetails))
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken, userDetails)) {
             throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
+        }
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
