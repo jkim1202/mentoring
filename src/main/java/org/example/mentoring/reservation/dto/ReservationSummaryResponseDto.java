@@ -1,5 +1,6 @@
 package org.example.mentoring.reservation.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -7,6 +8,7 @@ import org.example.mentoring.user.entity.User;
 
 import java.time.LocalDateTime;
 
+@Schema(description = "예약 목록 응답 항목")
 public record ReservationSummaryResponseDto(
         Long reservationId,
         ReservationStatus reservationStatus,

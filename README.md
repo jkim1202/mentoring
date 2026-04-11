@@ -494,7 +494,8 @@ docker compose up -d
 ## API 문서
 Swagger/OpenAPI 의존성은 추가되어 있다.
 
-현재는 문서화 환경만 구성된 상태이며, `@Operation`, `@ApiResponse`, `@Schema` 등 상세 문서 어노테이션은 추후 보강할 예정이다.
+현재는 주요 컨트롤러와 핵심 DTO에 `@Operation`, `@ApiResponse`, `@Schema` 기반 문서화를 반영했다.
+JWT 인증이 필요한 API는 Swagger UI의 `Authorize` 버튼에서 Bearer token으로 테스트할 수 있다.
 
 예상 경로:
 - `/swagger-ui/index.html`

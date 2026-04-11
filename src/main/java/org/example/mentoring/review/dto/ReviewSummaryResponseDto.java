@@ -1,9 +1,11 @@
 package org.example.mentoring.review.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.example.mentoring.review.domain.Review;
 
 import java.time.LocalDateTime;
 
+@Schema(description = "리뷰 목록 응답 항목")
 public record ReviewSummaryResponseDto(
         Long reviewId,
         Long reviewerUserId,
