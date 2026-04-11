@@ -7,7 +7,6 @@ import io.jsonwebtoken.security.SecurityException;
 import jakarta.annotation.PostConstruct;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +21,6 @@ public class JwtTokenProvider {
     private SecretKey accessKey;
     private SecretKey refreshKey;
 
-    @Autowired
     public JwtTokenProvider(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
     }

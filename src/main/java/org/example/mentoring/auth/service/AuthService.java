@@ -8,7 +8,6 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.user.repository.UserRepository;
 import org.example.mentoring.security.JwtTokenProvider;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -28,7 +27,6 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
 
-    @Autowired
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwtTokenProvider,

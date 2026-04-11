@@ -113,6 +113,7 @@ org.example.mentoring
 ├── application
 ├── auth
 ├── config
+├── expiration
 ├── exception
 ├── listing
 ├── mentor
@@ -287,6 +288,9 @@ Flyway로 스키마를 버전 관리한다.
 - `V7__create_applications.sql`
 - `V8__create_reservations.sql`
 - `V9__add_active_slot_unique_constraint.sql`
+- `V10__add_reservation_payment_timestamps.sql`
+- `V11__create_reviews.sql`
+- `V12__create_reservation_message.sql`
 
 현재 기준 핵심 테이블:
 - `users`
