@@ -16,7 +16,6 @@ import org.example.mentoring.review.repository.ReviewRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +29,6 @@ public class ReviewService {
     private final ReservationRepository reservationRepository;
     private final ReviewRepository reviewRepository;
 
-    @Autowired
     public ReviewService(ReviewRepository reviewRepository, UserRepository userRepository, ReservationRepository reservationRepository) {
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;

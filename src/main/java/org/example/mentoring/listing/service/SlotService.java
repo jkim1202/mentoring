@@ -6,14 +6,12 @@ import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.repository.SlotRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SlotService {
     private final SlotRepository slotRepository;
 
-    @Autowired
     public SlotService(SlotRepository slotRepository) {
         this.slotRepository = slotRepository;
     }

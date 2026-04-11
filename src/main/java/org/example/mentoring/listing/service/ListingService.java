@@ -9,7 +9,6 @@ import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.repository.ListingRepository;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +22,6 @@ public class ListingService {
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
 
-    @Autowired
     public ListingService(ListingRepository listingRepository, UserRepository userRepository) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;

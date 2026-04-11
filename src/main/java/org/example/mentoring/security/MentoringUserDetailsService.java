@@ -4,7 +4,6 @@ import org.example.mentoring.user.entity.User;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
 public class MentoringUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
 
-    @Autowired
     public MentoringUserDetailsService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }

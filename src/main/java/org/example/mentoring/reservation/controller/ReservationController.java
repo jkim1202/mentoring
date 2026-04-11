@@ -6,7 +6,6 @@ import org.example.mentoring.reservation.dto.ReservationSearchRequestDto;
 import org.example.mentoring.reservation.dto.ReservationSummaryResponseDto;
 import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 public class ReservationController {
     private final ReservationService reservationService;
 
-    @Autowired
     public ReservationController(ReservationService reservationService) {
         this.reservationService = reservationService;
     }

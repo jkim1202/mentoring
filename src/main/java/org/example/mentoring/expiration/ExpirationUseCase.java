@@ -6,7 +6,6 @@ import org.example.mentoring.listing.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
 import org.example.mentoring.listing.service.SlotService;
 import org.example.mentoring.reservation.service.ReservationService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +18,6 @@ public class ExpirationUseCase {
     private final ApplicationService applicationService;
     private final SlotService slotService;
 
-    @Autowired
     public ExpirationUseCase(ReservationService reservationService, ApplicationService applicationService, SlotService slotService) {
         this.reservationService = reservationService;
         this.applicationService = applicationService;

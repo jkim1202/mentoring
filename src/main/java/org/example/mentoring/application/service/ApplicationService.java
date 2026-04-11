@@ -18,7 +18,6 @@ import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +36,6 @@ public class ApplicationService {
     private final SlotService slotService;
     private final ReservationService reservationService;
 
-    @Autowired
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ListingRepository listingRepository,

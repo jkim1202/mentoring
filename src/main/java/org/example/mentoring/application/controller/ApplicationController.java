@@ -5,7 +5,6 @@ import org.example.mentoring.application.dto.*;
 import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.application.service.ApplicationService;
 import org.example.mentoring.security.MentoringUserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 public class ApplicationController {
     private final ApplicationService applicationService;
 
-    @Autowired
     public ApplicationController(ApplicationService applicationService) {
         this.applicationService = applicationService;
     }

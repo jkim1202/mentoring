@@ -17,7 +17,6 @@ import org.example.mentoring.reservation.type.ReservationFilter;
 import org.example.mentoring.reservation.type.ReservationSort;
 import org.example.mentoring.reservation.type.ReservationView;
 import org.example.mentoring.security.MentoringUserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +36,6 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final SlotService slotService;
 
-    @Autowired
     public ReservationService(ReservationRepository reservationRepository, SlotService slotService) {
         this.reservationRepository = reservationRepository;
         this.slotService = slotService;

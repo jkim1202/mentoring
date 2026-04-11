@@ -13,7 +13,6 @@ import org.example.mentoring.reservation.repository.ReservationRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,6 @@ public class ReservationMessageService {
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
 
-    @Autowired
     public ReservationMessageService(ReservationMessageRepository reservationMessageRepository, ReservationRepository reservationRepository, UserRepository userRepository) {
         this.reservationMessageRepository = reservationMessageRepository;
         this.reservationRepository = reservationRepository;

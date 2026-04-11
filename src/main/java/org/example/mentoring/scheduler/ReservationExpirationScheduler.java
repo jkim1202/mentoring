@@ -3,7 +3,6 @@ package org.example.mentoring.scheduler;
 import lombok.extern.slf4j.Slf4j;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.expiration.ExpirationUseCase;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +11,6 @@ import org.springframework.stereotype.Component;
 public class ReservationExpirationScheduler {
     private final ExpirationUseCase expirationUseCase;
 
-    @Autowired
     public ReservationExpirationScheduler(ExpirationUseCase expirationUseCase) {
         this.expirationUseCase = expirationUseCase;
     }
