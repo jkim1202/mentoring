@@ -1,7 +1,12 @@
 package org.example.mentoring.application.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.mentoring.application.dto.*;
+import org.example.mentoring.application.dto.ApplicationCreateRequestDto;
+import org.example.mentoring.application.dto.ApplicationCreateResponseDto;
+import org.example.mentoring.application.dto.ApplicationDetailResponseDto;
+import org.example.mentoring.application.dto.ApplicationSearchRequestDto;
+import org.example.mentoring.application.dto.ApplicationStatusResponseDto;
+import org.example.mentoring.application.dto.ApplicationSummaryResponseDto;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.application.repository.ApplicationRepository;
@@ -127,8 +132,9 @@ public class ApplicationService {
                 .toList();
 
         List<Application> applications = applicationRepository.findAppliedApplicationsBySlotIds(slotIds);
-        for (Application application : applications)
+        for (Application application : applications) {
             application.changeStatus(ApplicationStatus.CANCELED);
+        }
 
         log.info("Canceled applications by slot expiry count={}", applications.size());
     }

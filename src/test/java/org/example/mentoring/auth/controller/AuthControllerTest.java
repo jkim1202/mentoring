@@ -1,7 +1,12 @@
 package org.example.mentoring.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.mentoring.auth.dto.*;
+import org.example.mentoring.auth.dto.LoginRequestDto;
+import org.example.mentoring.auth.dto.LoginResponseDto;
+import org.example.mentoring.auth.dto.RefreshRequestDto;
+import org.example.mentoring.auth.dto.RefreshResponseDto;
+import org.example.mentoring.auth.dto.RegisterRequestDto;
+import org.example.mentoring.auth.dto.RegisterResponseDto;
 import org.example.mentoring.auth.service.AuthService;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
@@ -55,6 +60,7 @@ public class AuthControllerTest {
                 .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andExpect(jsonPath("$.userStatus").value("ACTIVE"));
     }
+
     @Test
     @DisplayName("로그인 성공")
     void login_success() throws Exception {
