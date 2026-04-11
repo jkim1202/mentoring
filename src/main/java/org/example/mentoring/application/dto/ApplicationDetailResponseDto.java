@@ -1,5 +1,6 @@
 package org.example.mentoring.application.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.listing.entity.PlaceType;
@@ -7,6 +8,7 @@ import org.example.mentoring.user.entity.User;
 
 import java.time.LocalDateTime;
 
+@Schema(description = "신청 상세 응답")
 public record ApplicationDetailResponseDto(
         Long applicationId,
         ApplicationStatus applicationStatus,
