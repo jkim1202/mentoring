@@ -1,4 +1,4 @@
-package org.example.mentoring.listing.entity;
+package org.example.mentoring.slot.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,6 +18,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
+import org.example.mentoring.listing.entity.Listing;
+import org.example.mentoring.listing.entity.SlotStatus;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -79,6 +81,11 @@ public class Slot {
         } else {
             throw new BusinessException(ErrorCode.SLOT_INVALID_STATUS_TRANSITION);
         }
+    }
+
+    public void changeSchedule(LocalDateTime startAt, LocalDateTime endAt) {
+        this.startAt = startAt;
+        this.endAt = endAt;
     }
 
     public boolean isStarted() {

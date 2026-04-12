@@ -40,6 +40,8 @@ public enum ErrorCode {
     SLOT_ALREADY_BOOKED(HttpStatus.CONFLICT, "SLOT_003", "이미 예약된 슬롯입니다."),
     SLOT_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "SLOT_004", "슬롯 상태를 변경할 수 없습니다."),
     SLOT_EXPIRED(HttpStatus.BAD_REQUEST, "SLOT_005", "이미 시작 시간이 지난 슬롯입니다."),
+    SLOT_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "SLOT_006", "슬롯 시작 시간은 종료 시간보다 빨라야 합니다."),
+    SLOT_START_AT_IN_PAST(HttpStatus.BAD_REQUEST, "SLOT_007", "과거 시작 시간으로 슬롯을 생성할 수 없습니다."),
 
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "RESERVATION_001", "예약을 찾을 수 없습니다."),
     RESERVATION_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "RESERVATION_002", "예약 상태를 변경할 수 없습니다."),

@@ -23,7 +23,7 @@ import org.example.mentoring.application.entity.Application;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.entity.Listing;
-import org.example.mentoring.listing.entity.Slot;
+import org.example.mentoring.slot.entity.Slot;
 import org.example.mentoring.user.entity.User;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;

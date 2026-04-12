@@ -64,6 +64,16 @@
 - `PATCH /api/listings/{id}/status`
 - Querydsl 기반 검색 / 정렬 / 페이징
 
+### Slot
+- `POST /api/listings/{listingId}/slots`
+- `GET /api/listings/{listingId}/slots`
+- `PATCH /api/slots/{slotId}`
+- 등록글 작성자만 슬롯 생성/수정 가능
+- 슬롯 목록은 `startAt ASC` 기준으로 조회
+- `from`, `to`, `page`, `size` 기반 목록 조회 지원
+- 시간 범위 오류와 과거 시작 시간 검증 포함
+- `BOOKED`, `EXPIRED` 슬롯은 수정 불가
+
 ### Application
 - `POST /api/applications`
 - `GET /api/applications/{id}`
@@ -125,6 +135,7 @@ org.example.mentoring
 ├── reservation
 ├── review
 ├── security
+├── slot
 └── user
 ```
 
@@ -385,6 +396,89 @@ Content-Type: application/json
 }
 ```
 
+### 슬롯 생성
+요청:
+```http
+POST /api/listings/1/slots
+Authorization: Bearer <ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+```json
+{
+  "startAt": "2026-04-20T14:00:00",
+  "endAt": "2026-04-20T15:00:00"
+}
+```
+
+응답:
+```json
+{
+  "slotId": 1,
+  "listingId": 1,
+  "startAt": "2026-04-20T14:00:00",
+  "endAt": "2026-04-20T15:00:00",
+  "status": "OPEN"
+}
+```
+
+### 슬롯 목록 조회
+요청:
+```http
+GET /api/listings/1/slots?from=2026-04-20T00:00:00&to=2026-04-30T23:59:59&page=0&size=20
+```
+
+응답:
+```json
+{
+  "content": [
+    {
+      "slotId": 1,
+      "listingId": 1,
+      "startAt": "2026-04-20T14:00:00",
+      "endAt": "2026-04-20T15:00:00",
+      "status": "OPEN"
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20
+  },
+  "totalElements": 1,
+  "totalPages": 1,
+  "last": true,
+  "first": true,
+  "size": 20,
+  "number": 0
+}
+```
+
+### 슬롯 수정
+요청:
+```http
+PATCH /api/slots/1
+Authorization: Bearer <ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+```json
+{
+  "startAt": "2026-04-20T16:00:00",
+  "endAt": "2026-04-20T17:00:00"
+}
+```
+
+응답:
+```json
+{
+  "slotId": 1,
+  "listingId": 1,
+  "startAt": "2026-04-20T16:00:00",
+  "endAt": "2026-04-20T17:00:00",
+  "status": "OPEN"
+}
+```
+
 ### 신청 생성
 요청:
 ```http
@@ -468,6 +562,7 @@ Authorization: Bearer <ACCESS_TOKEN>
 서비스 테스트:
 ```bash
 ./gradlew --no-daemon test \
+  --tests org.example.mentoring.listing.service.SlotServiceTest \
   --tests org.example.mentoring.application.service.ApplicationServiceTest \
   --tests org.example.mentoring.reservation.service.ReservationServiceTest
 ```
@@ -475,6 +570,8 @@ Authorization: Bearer <ACCESS_TOKEN>
 컨트롤러 테스트:
 ```bash
 ./gradlew --no-daemon test \
+  --tests org.example.mentoring.slot.controller.ListingSlotControllerTest \
+  --tests org.example.mentoring.slot.controller.SlotControllerTest \
   --tests org.example.mentoring.application.controller.ApplicationControllerTest \
   --tests org.example.mentoring.reservation.controller.ReservationControllerTest
 ```
