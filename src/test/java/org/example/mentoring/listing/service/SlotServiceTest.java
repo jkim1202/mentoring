@@ -289,6 +289,43 @@ class SlotServiceTest {
     }
 
     @Test
+    @DisplayName("시작 시간이 지난 슬롯은 수정 실패")
+    void update_slot_fail_when_expired() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(LocalDateTime.now().minusMinutes(1))
+                .endAt(LocalDateTime.now().plusMinutes(30))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        SlotUpdateRequestDto requestDto = new SlotUpdateRequestDto(
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(1).plusHours(1)
+        );
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
+
+        assertThatThrownBy(() -> slotService.updateSlot(100L, requestDto, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SLOT_EXPIRED));
+    }
+
+    @Test
     @DisplayName("시작 시간이 지난 OPEN 슬롯은 신청 가능 검증 시 EXPIRED 처리된다")
     void validate_slot_available_for_application_fails_when_slot_started() {
         Slot slot = Slot.builder()
