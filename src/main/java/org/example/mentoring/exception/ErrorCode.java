@@ -27,6 +27,9 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "사용자를 찾을 수 없습니다."),
     USER_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_002", "이미 사용 중인 이메일입니다."),
 
+    MENTOR_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "MENTOR_PROFILE_001", "멘토 프로필을 찾을 수 없습니다."),
+    MENTOR_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "MENTOR_PROFILE_002", "이미 멘토 프로필이 존재합니다."),
+
     LISTING_NOT_FOUND(HttpStatus.NOT_FOUND, "LISTING_001", "게시글을 찾을 수 없습니다."),
     LISTING_NOT_EDITABLE(HttpStatus.FORBIDDEN, "LISTING_002", "게시글을 수정할 수 없습니다."),
     LISTING_INVALID_PRICE_RANGE(HttpStatus.BAD_REQUEST, "LISTING_003", "최소 금액은 최대 금액보다 클 수 없습니다."),

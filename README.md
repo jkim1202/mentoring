@@ -51,6 +51,11 @@
 - `POST /api/auth/refresh`
 - JWT 기반 인증 필터 및 인증 실패 응답 처리
 
+### Mentor Profile
+- `POST /api/mentors/me/profile`
+- `GET /api/mentors/{mentorUserId}/profile`
+- 사용자 1명당 멘토 프로필 1개 생성
+
 ### Listing
 - `POST /api/listings`
 - `GET /api/listings/{id}`
