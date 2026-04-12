@@ -2,9 +2,9 @@ package org.example.mentoring.expiration;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.mentoring.application.service.ApplicationService;
-import org.example.mentoring.listing.entity.Slot;
+import org.example.mentoring.slot.entity.Slot;
 import org.example.mentoring.listing.entity.SlotStatus;
-import org.example.mentoring.listing.service.SlotService;
+import org.example.mentoring.slot.service.SlotService;
 import org.example.mentoring.reservation.service.ReservationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

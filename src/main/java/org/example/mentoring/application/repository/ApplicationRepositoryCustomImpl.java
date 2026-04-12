@@ -10,7 +10,7 @@ import org.example.mentoring.application.entity.ApplicationStatus;
 import org.example.mentoring.application.entity.QApplication;
 import org.example.mentoring.application.type.ApplicationFilter;
 import org.example.mentoring.listing.entity.QListing;
-import org.example.mentoring.listing.entity.QSlot;
+import org.example.mentoring.slot.entity.QSlot;
 import org.example.mentoring.user.entity.QUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
