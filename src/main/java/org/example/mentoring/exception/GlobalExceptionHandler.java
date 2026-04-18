@@ -3,6 +3,7 @@ package org.example.mentoring.exception;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,6 +35,18 @@ public class GlobalExceptionHandler {
                         "status", ec.getStatus().value(),
                         "code", ec.getCode(),
                         "message", message
+                ));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        ErrorCode ec = ErrorCode.COMMON_INVALID_INPUT;
+
+        return ResponseEntity.status(ec.getStatus())
+                .body(Map.of(
+                        "status", ec.getStatus().value(),
+                        "code", ec.getCode(),
+                        "message", ec.getMessage()
                 ));
     }
 

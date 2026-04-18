@@ -102,6 +102,12 @@
 - 완료된 예약에만 리뷰 작성 가능
 - 예약당 리뷰 1개만 생성 가능
 
+### My Page
+- `GET /api/users/me/listings`
+- 로그인 사용자가 등록한 멘토링 글 목록 조회
+- `page`, `size`, `sort`, `status` 기반 조회 지원
+- `sort`: `LATEST`, `RATING`, `REVIEWS`, `PRICE_ASC`, `PRICE_DESC`
+
 ## 상태 전이
 ### ListingStatus
 - `ACTIVE -> INACTIVE, DELETED`
@@ -476,6 +482,37 @@ Content-Type: application/json
   "startAt": "2026-04-20T16:00:00",
   "endAt": "2026-04-20T17:00:00",
   "status": "OPEN"
+}
+```
+
+### 내 등록글 조회
+요청:
+```http
+GET /api/users/me/listings?page=0&size=10&sort=LATEST&status=ACTIVE
+Authorization: Bearer <ACCESS_TOKEN>
+```
+
+- `sort` 허용값: `LATEST`, `RATING`, `REVIEWS`, `PRICE_ASC`, `PRICE_DESC`
+
+응답:
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "title": "Spring 멘토링",
+      "topic": "Spring",
+      "price": 50000,
+      "status": "ACTIVE",
+      "avgRating": 4.80,
+      "reviewCount": 12,
+      "createdAt": "2026-04-18T10:00:00"
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "size": 10,
+  "number": 0
 }
 ```
 
