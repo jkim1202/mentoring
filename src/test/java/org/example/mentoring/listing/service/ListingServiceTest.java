@@ -1,6 +1,7 @@
 package org.example.mentoring.listing.service;
 
 import org.example.mentoring.listing.dto.MyListingSearchRequestDto;
+import org.example.mentoring.listing.dto.MyListingSort;
 import org.example.mentoring.listing.dto.MyListingSummaryResponseDto;
 import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.ListingStatus;
@@ -59,7 +60,7 @@ class ListingServiceTest {
                 .createdAt(LocalDateTime.of(2026, 4, 18, 10, 0))
                 .build();
 
-        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, "LATEST", null);
+        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, MyListingSort.LATEST, null);
 
         given(listingRepository.findByMentorId(1L, PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))))
                 .willReturn(new PageImpl<>(List.of(listing), PageRequest.of(0, 10), 1));
@@ -76,7 +77,7 @@ class ListingServiceTest {
     @Test
     @DisplayName("내 등록글 상태 필터 조회 성공")
     void get_my_listings_with_status_filter_success() {
-        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, "LATEST", ListingStatus.INACTIVE);
+        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, MyListingSort.LATEST, ListingStatus.INACTIVE);
 
         given(listingRepository.findByMentorIdAndStatus(any(), any(), any()))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));

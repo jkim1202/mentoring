@@ -106,6 +106,7 @@
 - `GET /api/users/me/listings`
 - 로그인 사용자가 등록한 멘토링 글 목록 조회
 - `page`, `size`, `sort`, `status` 기반 조회 지원
+- `sort`: `LATEST`, `RATING`, `REVIEWS`, `PRICE_ASC`, `PRICE_DESC`
 
 ## 상태 전이
 ### ListingStatus
@@ -490,6 +491,8 @@ Content-Type: application/json
 GET /api/users/me/listings?page=0&size=10&sort=LATEST&status=ACTIVE
 Authorization: Bearer <ACCESS_TOKEN>
 ```
+
+- `sort` 허용값: `LATEST`, `RATING`, `REVIEWS`, `PRICE_ASC`, `PRICE_DESC`
 
 응답:
 ```json

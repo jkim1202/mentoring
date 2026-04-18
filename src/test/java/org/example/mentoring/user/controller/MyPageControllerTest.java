@@ -94,6 +94,16 @@ class MyPageControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON_001"));
     }
 
+    @Test
+    @DisplayName("내 등록글 조회 실패 - 잘못된 정렬 값")
+    void get_my_listings_fail_when_invalid_sort() throws Exception {
+        mockMvc.perform(get("/api/users/me/listings")
+                        .param("sort", "WRONG")
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_001"));
+    }
+
     private UsernamePasswordAuthenticationToken authOf(Long userId) {
         MentoringUserDetails principal = new MentoringUserDetails(
                 userId,

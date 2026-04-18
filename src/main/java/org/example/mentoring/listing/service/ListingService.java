@@ -4,6 +4,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.listing.dto.ListingCreateRequestDto;
 import org.example.mentoring.listing.dto.MyListingSearchRequestDto;
+import org.example.mentoring.listing.dto.MyListingSort;
 import org.example.mentoring.listing.dto.MyListingSummaryResponseDto;
 import org.example.mentoring.listing.dto.ListingResponseDto;
 import org.example.mentoring.listing.dto.ListingSearchRequestDto;
@@ -90,7 +91,7 @@ public class ListingService {
     public Page<MyListingSummaryResponseDto> getMyListings(Long loginId, MyListingSearchRequestDto req) {
         int page = req.page() == null ? 0 : req.page();
         int size = req.size() == null ? 10 : req.size();
-        String sort = req.sort() == null ? "LATEST" : req.sort();
+        String sort = req.sort() == null ? MyListingSort.LATEST.name() : req.sort().name();
 
         Pageable pageable = PageRequest.of(page, size, toSort(sort));
         Page<Listing> listings = req.status() == null

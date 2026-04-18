@@ -11,8 +11,12 @@ public record MyListingSearchRequestDto(
         @Min(0) Integer page,
         @Schema(description = "페이지 크기", example = "10")
         @Min(1) @Max(50) Integer size,
-        @Schema(description = "정렬 기준", example = "LATEST")
-        String sort,
+        @Schema(
+                description = "정렬 기준",
+                example = "LATEST",
+                allowableValues = {"LATEST", "RATING", "REVIEWS", "PRICE_ASC", "PRICE_DESC"}
+        )
+        MyListingSort sort,
         @Schema(description = "등록글 상태 필터", example = "ACTIVE")
         ListingStatus status
 ) {
