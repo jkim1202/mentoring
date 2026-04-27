@@ -53,7 +53,11 @@ public enum ErrorCode {
     RESERVATION_START_AT_EXPIRED(HttpStatus.BAD_REQUEST, "RESERVATION_008", "예약이 시작 시간을 넘어서 만료되었습니다."),
 
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_001", "리뷰를 찾을 수 없습니다."),
-    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW_002", "이미 리뷰가 존재합니다.");
+    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW_002", "이미 리뷰가 존재합니다."),
+
+    LIKE_SELF_NOT_ALLOWED(HttpStatus.FORBIDDEN, "LIKE_001", "본인 게시글은 좋아할 수 없습니다.");
+
+
 
     private final HttpStatus status;
     private final String code;
