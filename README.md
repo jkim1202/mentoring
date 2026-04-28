@@ -1,6 +1,6 @@
 # Mentoring
 
-멘토와 멘티를 연결하는 멘토링 플랫폼 백엔드 프로젝트다. 현재는 인증, 멘토링 글 관리, 신청, 예약 생성 및 상태 전이까지의 핵심 도메인 흐름을 구현하고 있다.
+멘토와 멘티를 연결하는 멘토링 플랫폼 백엔드 프로젝트다. 현재는 인증, 멘토링 글 관리, 찜, 신청, 예약 생성 및 상태 전이까지의 핵심 도메인 흐름을 구현하고 있다.
 
 ## 프로젝트 목표
 - Spring Boot 기반 백엔드 구조 익히기
@@ -102,6 +102,12 @@
 - 완료된 예약에만 리뷰 작성 가능
 - 예약당 리뷰 1개만 생성 가능
 
+### Like
+- `POST /api/listings/{listingId}/like`
+- `GET /api/users/me/likes`
+- 본인 게시글 찜 방지
+- 내 찜 목록은 `likes.created_at DESC` 기준으로 조회
+
 ### My Page
 - `GET /api/users/me/listings`
 - 로그인 사용자가 등록한 멘토링 글 목록 조회
@@ -136,6 +142,7 @@ org.example.mentoring
 ├── config
 ├── expiration
 ├── exception
+├── like
 ├── listing
 ├── mentor
 ├── reservation
@@ -157,11 +164,13 @@ erDiagram
     USERS ||--o{ USER_ROLES : has
     USERS ||--|| MENTOR_PROFILES : owns
     USERS ||--o{ LISTINGS : writes
+    USERS ||--o{ LIKES : likes
     USERS ||--o{ APPLICATIONS : applies
     USERS ||--o{ RESERVATIONS : mentors
     USERS ||--o{ RESERVATIONS : mentees
 
     LISTINGS ||--o{ SLOTS : has
+    LISTINGS ||--o{ LIKES : liked_by
     LISTINGS ||--o{ APPLICATIONS : receives
     LISTINGS ||--o{ RESERVATIONS : contains
 
@@ -215,6 +224,13 @@ erDiagram
         bigint mentee_user_id FK
         bigint slot_id FK
         enum status
+    }
+
+    LIKES {
+        bigint id PK
+        bigint user_id FK
+        bigint listing_id FK
+        datetime created_at
     }
 
     RESERVATIONS {
