@@ -2,6 +2,7 @@ package org.example.mentoring.listing.service;
 
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
+import org.example.mentoring.like.repository.LikeRepository;
 import org.example.mentoring.listing.dto.ListingCreateRequestDto;
 import org.example.mentoring.listing.dto.MyListingSearchRequestDto;
 import org.example.mentoring.listing.dto.MyListingSort;
@@ -15,6 +16,7 @@ import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.ListingStatus;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.repository.ListingRepository;
+import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -24,15 +26,20 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Set;
+
 @Service
 public class ListingService {
 
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
+    private final LikeRepository likeRepository;
 
-    public ListingService(ListingRepository listingRepository, UserRepository userRepository) {
+    public ListingService(ListingRepository listingRepository, UserRepository userRepository, LikeRepository likeRepository) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
+        this.likeRepository = likeRepository;
     }
 
     @Transactional
@@ -53,22 +60,19 @@ public class ListingService {
                 .description(req.description())
                 .build();
 
-        return ListingResponseDto.from(listingRepository.save(listing));
+        return ListingResponseDto.from(listingRepository.save(listing), false);
     }
 
     @Transactional
-    public ListingResponseDto getListing(Long id) {
-        return ListingResponseDto
-                .from(listingRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new BusinessException(ErrorCode.LISTING_NOT_FOUND)
-                        )
-                );
+    public ListingResponseDto getListing(Long id, MentoringUserDetails userDetails) {
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
+
+        return ListingResponseDto.from(listing, isLikedByCurrentUser(userDetails, listing.getId()));
     }
 
     @Transactional
-    public Page<ListingSummaryResponseDto> getListings(ListingSearchRequestDto req) {
+    public Page<ListingSummaryResponseDto> getListings(ListingSearchRequestDto req, MentoringUserDetails userDetails) {
         if (req.maxPrice() != null && req.minPrice() != null && req.maxPrice() < req.minPrice())
             throw new BusinessException(ErrorCode.LISTING_INVALID_PRICE_RANGE);
         int page = req.page() == null ? 0 : req.page();
@@ -76,14 +80,18 @@ public class ListingService {
         String sort = req.sort() == null ? "LATEST" : req.sort();
 
         Pageable pageable = PageRequest.of(page, size, toSort(sort));
-        return listingRepository.search(req, pageable)
+        Page<Listing> listings = listingRepository.search(req, pageable);
+        Set<Long> likedListingIds = findLikedListingIds(userDetails, listings.getContent());
+
+        return listings
                 .map(listing -> new ListingSummaryResponseDto(
                         listing.getId(),
                         listing.getTitle(),
                         listing.getTopic(),
                         listing.getPrice(),
                         listing.getAvgRating(),
-                        listing.getReviewCount()
+                        listing.getReviewCount(),
+                        likedListingIds.contains(listing.getId())
                 ));
     }
 
@@ -117,7 +125,7 @@ public class ListingService {
 
         applyUpdates(listing, req);
 
-        return ListingResponseDto.from(listing);
+        return ListingResponseDto.from(listing, false);
     }
 
     @Transactional
@@ -134,7 +142,24 @@ public class ListingService {
         }
 
         listing.updateStatus(req.status());
-        return ListingResponseDto.from(listing);
+        return ListingResponseDto.from(listing, false);
+    }
+
+    private boolean isLikedByCurrentUser(MentoringUserDetails userDetails, Long listingId) {
+        if (userDetails == null) {
+            return false;
+        }
+        return likeRepository.existsByUserIdAndListingId(userDetails.getId(), listingId);
+    }
+
+    private Set<Long> findLikedListingIds(MentoringUserDetails userDetails, List<Listing> listings) {
+        if (userDetails == null || listings.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> listingIds = listings.stream()
+                .map(Listing::getId)
+                .toList();
+        return likeRepository.findLikedListingIdsByUserIdAndListingIds(userDetails.getId(), listingIds);
     }
 
     private Sort toSort(String sort) {

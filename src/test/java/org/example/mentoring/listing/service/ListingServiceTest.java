@@ -1,5 +1,9 @@
 package org.example.mentoring.listing.service;
 
+import org.example.mentoring.like.repository.LikeRepository;
+import org.example.mentoring.listing.dto.ListingResponseDto;
+import org.example.mentoring.listing.dto.ListingSearchRequestDto;
+import org.example.mentoring.listing.dto.ListingSummaryResponseDto;
 import org.example.mentoring.listing.dto.MyListingSearchRequestDto;
 import org.example.mentoring.listing.dto.MyListingSort;
 import org.example.mentoring.listing.dto.MyListingSummaryResponseDto;
@@ -7,7 +11,9 @@ import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.ListingStatus;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.listing.repository.ListingRepository;
+import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
+import org.example.mentoring.user.entity.UserStatus;
 import org.example.mentoring.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,9 +27,12 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +46,9 @@ class ListingServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private LikeRepository likeRepository;
 
     @Test
     @DisplayName("내 등록글 조회 성공")
@@ -85,5 +97,79 @@ class ListingServiceTest {
         var result = listingService.getMyListings(1L, requestDto);
 
         assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("등록글 상세 조회 시 로그인 사용자의 liked 여부를 포함한다")
+    void get_listing_with_liked_success() {
+        User mentor = createUser(1L, "mentor@test.com");
+        Listing listing = createListing(10L, mentor);
+        MentoringUserDetails userDetails = userDetailsOf(2L);
+
+        given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
+        given(likeRepository.existsByUserIdAndListingId(2L, 10L)).willReturn(true);
+
+        ListingResponseDto result = listingService.getListing(10L, userDetails);
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.liked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("등록글 목록 조회 시 liked 여부를 함께 내려준다")
+    void get_listings_with_liked_success() {
+        User mentor = createUser(1L, "mentor@test.com");
+        Listing first = createListing(10L, mentor);
+        Listing second = createListing(11L, mentor);
+        ListingSearchRequestDto requestDto = new ListingSearchRequestDto(0, 10, "LATEST", null, null, null, null);
+        MentoringUserDetails userDetails = userDetailsOf(2L);
+
+        given(listingRepository.search(eq(requestDto), any()))
+                .willReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 10), 2));
+        given(likeRepository.findLikedListingIdsByUserIdAndListingIds(2L, List.of(10L, 11L)))
+                .willReturn(Set.of(10L));
+
+        var result = listingService.getListings(requestDto, userDetails);
+
+        assertThat(result.getContent()).hasSize(2);
+        ListingSummaryResponseDto firstItem = result.getContent().get(0);
+        ListingSummaryResponseDto secondItem = result.getContent().get(1);
+        assertThat(firstItem.id()).isEqualTo(10L);
+        assertThat(firstItem.liked()).isTrue();
+        assertThat(secondItem.id()).isEqualTo(11L);
+        assertThat(secondItem.liked()).isFalse();
+    }
+
+    private User createUser(Long id, String email) {
+        return User.builder()
+                .id(id)
+                .email(email)
+                .build();
+    }
+
+    private Listing createListing(Long id, User mentor) {
+        return Listing.builder()
+                .id(id)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring")
+                .price(50000)
+                .placeType(PlaceType.ONLINE)
+                .description("설명")
+                .status(ListingStatus.ACTIVE)
+                .avgRating(new BigDecimal("4.80"))
+                .reviewCount(12)
+                .createdAt(LocalDateTime.of(2026, 4, 18, 10, 0))
+                .build();
+    }
+
+    private MentoringUserDetails userDetailsOf(Long userId) {
+        return new MentoringUserDetails(
+                userId,
+                "mentee@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
     }
 }
