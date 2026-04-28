@@ -22,9 +22,11 @@ public record ListingResponseDto(
         @Schema(description = "장소 설명")
         String placeDesc,
         @Schema(description = "등록글 상태", example = "ACTIVE")
-        ListingStatus status
+        ListingStatus status,
+        @Schema(description = "현재 로그인 사용자의 찜 여부", example = "true")
+        boolean liked
 ) {
-    public static ListingResponseDto from(Listing listing) {
+    public static ListingResponseDto from(Listing listing, boolean liked) {
         return new ListingResponseDto(
                 listing.getId(),
                 listing.getTitle(),
@@ -33,7 +35,8 @@ public record ListingResponseDto(
                 listing.getPlaceType(),
                 listing.getDescription(),
                 listing.getPlaceDesc(),
-                listing.getStatus()
+                listing.getStatus(),
+                liked
         );
     }
 }

@@ -63,17 +63,23 @@ public class ListingController {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "404", description = "등록글 없음", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<ListingResponseDto> getListing(@PathVariable Long id) {
-        return ResponseEntity.ok(listingService.getListing(id));
+    public ResponseEntity<ListingResponseDto> getListing(
+            @PathVariable Long id,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal MentoringUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(listingService.getListing(id, userDetails));
     }
 
     @GetMapping
     @Operation(summary = "등록글 목록 조회", description = "필터, 정렬, 페이지 조건으로 등록글 목록을 조회한다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
     public ResponseEntity<Page<ListingSummaryResponseDto>> getListings(
-            @ModelAttribute ListingSearchRequestDto request
+            @ModelAttribute ListingSearchRequestDto request,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal MentoringUserDetails userDetails
     ) {
-        Page<ListingSummaryResponseDto> result = listingService.getListings(request);
+        Page<ListingSummaryResponseDto> result = listingService.getListings(request, userDetails);
         return ResponseEntity.ok(result);
     }
 

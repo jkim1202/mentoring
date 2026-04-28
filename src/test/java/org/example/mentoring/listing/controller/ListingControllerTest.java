@@ -86,7 +86,8 @@ class ListingControllerTest {
                 PlaceType.ONLINE,
                 "실무 중심 멘토링",
                 null,
-                ListingStatus.ACTIVE
+                ListingStatus.ACTIVE,
+                false
         );
 
         given(listingService.createListing(any(), any(ListingCreateRequestDto.class))).willReturn(res);
@@ -104,21 +105,24 @@ class ListingControllerTest {
     @DisplayName("목록 조회 성공")
     void get_listings_success() throws Exception {
         List<ListingSummaryResponseDto> items = List.of(
-                new ListingSummaryResponseDto(1L, "Spring 멘토링", "Spring", 50000, new BigDecimal("4.80"), 12),
-                new ListingSummaryResponseDto(2L, "Java 멘토링", "Java", 40000, new BigDecimal("4.60"), 8)
+                new ListingSummaryResponseDto(1L, "Spring 멘토링", "Spring", 50000, new BigDecimal("4.80"), 12, true),
+                new ListingSummaryResponseDto(2L, "Java 멘토링", "Java", 40000, new BigDecimal("4.60"), 8, false)
         );
 
-        given(listingService.getListings(any()))
+        given(listingService.getListings(any(), any()))
                 .willReturn(new PageImpl<>(items, PageRequest.of(0, 10), 2));
 
         mockMvc.perform(get("/api/listings")
                         .param("page", "0")
                         .param("size", "10")
-                        .param("sort", "LATEST"))
+                        .param("sort", "LATEST")
+                        .with(authentication(authOf(10L))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("Spring 멘토링"))
-                .andExpect(jsonPath("$.content[0].reviewCount").value(12));
+                .andExpect(jsonPath("$.content[0].reviewCount").value(12))
+                .andExpect(jsonPath("$.content[0].liked").value(true))
+                .andExpect(jsonPath("$.content[1].liked").value(false));
     }
 
     @Test
@@ -132,15 +136,18 @@ class ListingControllerTest {
                 PlaceType.ONLINE,
                 "실무 위주 멘토링",
                 null,
-                ListingStatus.ACTIVE
+                ListingStatus.ACTIVE,
+                true
         );
 
-        given(listingService.getListing(1L)).willReturn(res);
+        given(listingService.getListing(eq(1L), any())).willReturn(res);
 
-        mockMvc.perform(get("/api/listings/1"))
+        mockMvc.perform(get("/api/listings/1")
+                        .with(authentication(authOf(10L))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.placeType").value("ONLINE"));
+                .andExpect(jsonPath("$.placeType").value("ONLINE"))
+                .andExpect(jsonPath("$.liked").value(true));
     }
 
     @Test
@@ -163,7 +170,8 @@ class ListingControllerTest {
                 PlaceType.ONLINE,
                 "수정된 설명",
                 null,
-                ListingStatus.ACTIVE
+                ListingStatus.ACTIVE,
+                false
         );
 
         given(listingService.updateListing(eq(1L), any(), any(ListingUpdateRequestDto.class))).willReturn(res);
@@ -216,7 +224,7 @@ class ListingControllerTest {
     void update_listing_status_active_to_inactive_success() throws Exception {
         ListingStatusUpdateRequestDto req = new ListingStatusUpdateRequestDto(ListingStatus.INACTIVE);
         ListingResponseDto res = new ListingResponseDto(
-                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.INACTIVE
+                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.INACTIVE, false
         );
         given(listingService.updateStatus(eq(1L), any(Long.class), any(ListingStatusUpdateRequestDto.class))).willReturn(res);
 
@@ -234,7 +242,7 @@ class ListingControllerTest {
     void update_listing_status_delete_to_active_fail() throws Exception {
         ListingStatusUpdateRequestDto req = new ListingStatusUpdateRequestDto(ListingStatus.ACTIVE);
         ListingResponseDto res = new ListingResponseDto(
-                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.DELETED
+                1L, "제목", "Spring", 50000, PlaceType.ONLINE, "설명", null, ListingStatus.DELETED, false
         );
         given(listingService.updateStatus(eq(1L), any(Long.class), any(ListingStatusUpdateRequestDto.class))).willThrow(new BusinessException(ErrorCode.LISTING_INVALID_STATUS_TRANSITION));
 

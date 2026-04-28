@@ -11,5 +11,6 @@ public record ListingSummaryResponseDto (
     String topic,
     Integer price,
     BigDecimal avgRating,
-    Integer reviewCount
+    Integer reviewCount,
+    boolean liked
 ){}
