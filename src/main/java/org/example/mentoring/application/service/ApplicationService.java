@@ -23,6 +23,7 @@ import org.example.mentoring.reservation.service.ReservationService;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -71,7 +72,12 @@ public class ApplicationService {
                 .message(req.message())
                 .build();
 
-        applicationRepository.save(application);
+        try {
+            applicationRepository.saveAndFlush(application);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.APPLICATION_ALREADY_EXISTS);
+        }
+
         return ApplicationCreateResponseDto.from(application);
     }
 
