@@ -81,6 +81,17 @@ public class ApplicationController {
         return ResponseEntity.ok(applicationService.updateApplicationStatus(id, userDetails, ApplicationStatus.REJECTED));
     }
 
+    @PatchMapping("/{id}/cancel")
+    @Operation(summary = "신청 취소", description = "멘티가 신청을 취소한다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "취소 성공"),
+            @ApiResponse(responseCode = "403", description = "멘티 권한 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    public ResponseEntity<ApplicationStatusResponseDto> cancelApplication(@PathVariable Long id, @AuthenticationPrincipal MentoringUserDetails userDetails) {
+        return ResponseEntity.ok(applicationService.updateApplicationStatus(id, userDetails, ApplicationStatus.CANCELED));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "신청 상세 조회", description = "신청 당사자 또는 멘토가 신청 상세를 조회한다.")
     @SecurityRequirement(name = "bearerAuth")

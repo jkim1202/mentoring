@@ -244,7 +244,7 @@ public class ApplicationServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
 
         ApplicationStatusResponseDto result =
@@ -287,7 +287,7 @@ public class ApplicationServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
         willThrow(new BusinessException(ErrorCode.APPLICATION_ACCEPT_EXPIRED))
                 .given(slotService).validateSlotAcceptable(slot);
@@ -332,7 +332,7 @@ public class ApplicationServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
         willThrow(new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED))
                 .given(reservationService)
@@ -368,7 +368,7 @@ public class ApplicationServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
         given(userRepository.existsById(1L)).willReturn(true);
 
         ApplicationStatusResponseDto result =
@@ -497,7 +497,7 @@ public class ApplicationServiceTest {
         );
 
         given(userRepository.existsById(2L)).willReturn(true);
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
@@ -528,7 +528,7 @@ public class ApplicationServiceTest {
         );
 
         given(userRepository.existsById(1L)).willReturn(true);
-        given(applicationRepository.findById(100L)).willReturn(Optional.of(application));
+        given(applicationRepository.findByIdForUpdate(100L)).willReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(100L, userDetails, ApplicationStatus.ACCEPTED))
                 .isInstanceOfSatisfying(BusinessException.class, e ->

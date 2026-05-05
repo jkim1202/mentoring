@@ -77,14 +77,14 @@ public class ApplicationService {
 
     @Transactional
     public ApplicationStatusResponseDto updateApplicationStatus(Long applicationId, MentoringUserDetails userDetails, ApplicationStatus applicationStatus) {
-        Application application = findApplicationById(applicationId);
+        Application application = findApplicationByIdForUpdate(applicationId);
 
         validateUserExists(userDetails.getId());
-        validateMentorAuthority(application, userDetails);
 
         switch (applicationStatus) {
-            case ACCEPTED -> acceptApplication(application);
-            case REJECTED -> rejectApplication(application);
+            case ACCEPTED -> acceptApplication(application, userDetails);
+            case REJECTED -> rejectApplication(application, userDetails);
+            case CANCELED -> cancelApplication(application, userDetails);
             default -> application.changeStatus(applicationStatus);
         }
 
@@ -158,8 +158,8 @@ public class ApplicationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.LISTING_NOT_FOUND));
     }
 
-    private Application findApplicationById(Long applicationId) {
-        return applicationRepository.findById(applicationId)
+    private Application findApplicationByIdForUpdate(Long applicationId) {
+        return applicationRepository.findByIdForUpdate(applicationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
     }
 
@@ -177,16 +177,29 @@ public class ApplicationService {
         if (!application.getListing().getMentor().getId().equals(userDetails.getId()))
             throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTOR);
     }
+    private void validateMenteeAuthority(Application application, MentoringUserDetails userDetails) {
+        if (!application.getMentee().getId().equals(userDetails.getId()))
+            throw new BusinessException(ErrorCode.APPLICATION_NOT_BELONG_TO_MENTEE);
+    }
 
-    private void acceptApplication(Application application) {
+    private void acceptApplication(Application application, MentoringUserDetails userDetails) {
+        validateMentorAuthority(application, userDetails);
         validateApplicationSlotNotStarted(application.getSlot());
         application.changeStatus(ApplicationStatus.ACCEPTED);
         applicationRepository.save(application);
         reservationService.createReservation(application);
     }
 
-    private void rejectApplication(Application application) {
+    private void rejectApplication(Application application, MentoringUserDetails userDetails) {
+        validateMentorAuthority(application, userDetails);
         application.changeStatus(ApplicationStatus.REJECTED);
+        applicationRepository.save(application);
+    }
+
+
+    private void cancelApplication(Application application, MentoringUserDetails userDetails) {
+        validateMenteeAuthority(application, userDetails);
+        application.changeStatus(ApplicationStatus.CANCELED);
         applicationRepository.save(application);
     }
 
