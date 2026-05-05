@@ -355,11 +355,21 @@ public class ApplicationReservationIntegrationTest {
         // given: mentor, mentee, listing, slot, application, mentorDetails
         ApplicationFixture fixture = createApplicationFixture();
 
+        User anotherMentee = userRepository.save(
+                User.builder()
+                        .email("another-mentee@test.com")
+                        .passwordHash("hashed-password")
+                        .nickname("다른멘티닉네임")
+                        .status(UserStatus.ACTIVE)
+                        .roles(Set.of(Role.USER))
+                        .build()
+        );
+
         Application secondApplication = applicationRepository.save(
                 Application.builder()
                         .listing(fixture.listing())
                         .slot(fixture.slot())
-                        .mentee(fixture.mentee())
+                        .mentee(anotherMentee)
                         .message("두번째 신청합니다")
                         .status(ApplicationStatus.APPLIED)
                         .build()

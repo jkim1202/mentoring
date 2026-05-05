@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -105,7 +106,7 @@ public class ApplicationServiceTest {
                 ApplicationStatus.APPLIED
         ))
                 .willReturn(false);
-        given(applicationRepository.save(any(Application.class)))
+        given(applicationRepository.saveAndFlush(any(Application.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         ApplicationCreateResponseDto result =
@@ -113,6 +114,57 @@ public class ApplicationServiceTest {
 
         assertThat(result.status()).isEqualTo(ApplicationStatus.APPLIED);
         assertThat(result.message()).isEqualTo("Application Create Success Test Message");
+    }
+
+    @Test
+    @DisplayName("동시 신청으로 DB 중복 제약 충돌이 발생하면 중복 신청 실패로 변환")
+    void create_application_duplicate_constraint_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.OPEN)
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                2L, "mentee@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+        ApplicationCreateRequestDto req =
+                new ApplicationCreateRequestDto(10L, 100L, "동시 신청 메시지");
+
+        given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
+        given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
+        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
+                2L,
+                100L,
+                ApplicationStatus.APPLIED
+        ))
+                .willReturn(false);
+        willThrow(new DataIntegrityViolationException("duplicate applied application"))
+                .given(applicationRepository)
+                .saveAndFlush(any(Application.class));
+
+        assertThatThrownBy(() -> applicationService.createApplication(req, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.APPLICATION_ALREADY_EXISTS));
     }
 
     @Test
