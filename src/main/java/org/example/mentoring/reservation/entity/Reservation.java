@@ -100,6 +100,9 @@ public class Reservation {
     }
 
     public void confirmPaid() {
+        if(menteePaidMarkedAt == null){
+            throw new BusinessException(ErrorCode.RESERVATION_PAYMENT_NOT_MARKED);
+        }
         this.mentorPaidConfirmedAt = LocalDateTime.now();
     }
 }
