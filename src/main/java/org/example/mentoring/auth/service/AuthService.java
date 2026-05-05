@@ -15,6 +15,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.user.repository.UserRepository;
 import org.example.mentoring.security.JwtTokenProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -74,7 +75,13 @@ public class AuthService {
                 .status(UserStatus.ACTIVE)
                 .roles(roles)
                 .build();
-        userRepository.save(user);
+
+        // 사전 중복 체크 이후 발생한 DB unique 충돌도 동일한 도메인 예외로 매핑한다.
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
+        }
 
         return new RegisterResponseDto(user.getEmail(), user.getStatus());
     }
