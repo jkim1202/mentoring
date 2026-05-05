@@ -95,6 +95,9 @@ public class AuthService {
         if (!jwtTokenProvider.validateRefreshToken(refreshToken, userDetails)) {
             throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN);
         }
+        if (!userDetails.isEnabled()) {
+            throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
+        }
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(userDetails);

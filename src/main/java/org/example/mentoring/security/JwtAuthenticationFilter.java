@@ -58,6 +58,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
                 if (isTokenValid) {
+                    if (!userDetails.isEnabled()) {
+                        throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
+                    }
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
