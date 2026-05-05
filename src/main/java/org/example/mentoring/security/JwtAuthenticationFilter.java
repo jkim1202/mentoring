@@ -79,6 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         response,
                         new InsufficientAuthenticationException("JWT auth failed")
                 );
+                return;
             }
         } else {
             LOG.warn("JWT does not start with Bearer String");
