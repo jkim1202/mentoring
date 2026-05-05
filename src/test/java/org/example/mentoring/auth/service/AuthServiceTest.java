@@ -3,6 +3,7 @@ package org.example.mentoring.auth.service;
 import org.example.mentoring.auth.dto.LoginRequestDto;
 import org.example.mentoring.auth.dto.RefreshRequestDto;
 import org.example.mentoring.auth.dto.RefreshResponseDto;
+import org.example.mentoring.auth.dto.RegisterRequestDto;
 import org.example.mentoring.auth.entity.RefreshToken;
 import org.example.mentoring.auth.repository.RefreshTokenRepository;
 import org.example.mentoring.exception.BusinessException;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -53,6 +55,23 @@ class AuthServiceTest {
     private AuthenticationManager authenticationManager;
     @Mock
     private UserDetailsService userDetailsService;
+
+    @Test
+    @DisplayName("회원가입 중 DB unique 충돌은 이메일 중복 예외로 응답한다")
+    void register_duplicate_email_conflict_fail() {
+        AuthService authService = authService();
+        RegisterRequestDto request = new RegisterRequestDto("user@test.com", "password123");
+
+        given(userRepository.findByEmail("user@test.com")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("password123")).willReturn("encoded-password");
+        given(userRepository.saveAndFlush(any(User.class)))
+                .willThrow(new DataIntegrityViolationException("duplicate email"));
+
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_EMAIL_ALREADY_EXISTS)
+                );
+    }
 
     @Test
     @DisplayName("계정 상태 인증 실패는 AUTH_STATUS_NOT_ACTIVE로 응답한다")
