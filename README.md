@@ -22,6 +22,7 @@
 - 슬롯이 해당 등록글에 속하지 않으면 신청할 수 없다.
 - 활성 예약이 존재하는 슬롯에는 새 신청/수락을 진행할 수 없다.
 - 신청 수락 시 예약이 생성되며, 예약 생성과 슬롯 점유는 같은 트랜잭션에서 처리한다.
+- 신청 상태 변경은 신청 row 비관적 쓰기 락을 기준으로 순차 처리한다.
 - 시작 시간이 지난 슬롯의 신청은 수락할 수 없다.
 - 시작 시간이 지난 슬롯은 `EXPIRED`로 본다.
 - 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서는 같은 슬롯에 중복 예약할 수 없다.
@@ -50,6 +51,9 @@
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - JWT 기반 인증 필터 및 인증 실패 응답 처리
+- refresh token DB 저장 및 회전 방식 재발급
+- 비활성 계정의 access/refresh token 사용 차단
+- 회원가입 이메일 DB unique 충돌 예외 매핑
 
 ### Mentor Profile
 - `POST /api/mentors/me/profile`
@@ -80,6 +84,9 @@
 - `GET /api/applications`
 - `PATCH /api/applications/{id}/accept`
 - `PATCH /api/applications/{id}/reject`
+- `PATCH /api/applications/{id}/cancel`
+- 상태 변경 시 신청 row 비관적 쓰기 락 적용
+- `accept/reject`는 멘토 권한, `cancel`은 멘티 권한 기준 검증
 
 ### Reservation
 - 신청 수락 시 예약 생성
@@ -162,6 +169,7 @@ org.example.mentoring
 ```mermaid
 erDiagram
     USERS ||--o{ USER_ROLES : has
+    USERS ||--o| REFRESH_TOKENS : owns
     USERS ||--|| MENTOR_PROFILES : owns
     USERS ||--o{ LISTINGS : writes
     USERS ||--o{ LIKES : likes
@@ -190,6 +198,13 @@ erDiagram
     USER_ROLES {
         bigint user_id FK
         varchar role
+    }
+
+    REFRESH_TOKENS {
+        bigint id PK
+        bigint user_id FK, UK
+        varchar token_hash UK
+        datetime expires_at
     }
 
     MENTOR_PROFILES {
@@ -251,11 +266,13 @@ erDiagram
 
 설계 포인트:
 - `Application -> Reservation`은 1:1 흐름이다.
+- `Application` 상태 변경은 비관적 쓰기 락으로 같은 신청의 동시 상태 전이를 순차 처리한다.
 - 예약 생성 시 `Slot`은 `BOOKED`로 전이되고, 예약 취소 시 미래 슬롯은 `OPEN`, 시작한 슬롯은 `EXPIRED`로 정리된다.
 - `reservations.active_slot_id UNIQUE`로 활성 예약 상태에서만 같은 슬롯 중복 예약을 막는다.
 - 서비스에서는 `existsBySlotIdAndStatusIn(...)`와 슬롯 락으로 먼저 검증하고, DB는 최종 무결성을 보장한다.
 - `Reservation`은 `start_at`, `end_at`을 별도로 저장해 슬롯 변경/삭제 이후에도 예약 시각 이력을 보존한다.
 - 멘티 입금 표시와 멘토 입금 확인은 각각 `mentee_paid_marked_at`, `mentor_paid_confirmed_at`으로 기록한다.
+- refresh token은 원문이 아니라 SHA-256 hash를 저장하고, 재발급 시 저장된 현재 token만 허용한 뒤 새 token으로 회전한다.
 - 만료 정리처럼 여러 도메인을 함께 건드리는 작업은 도메인 서비스 간 직접 호출 대신 별도 use case 계층에서 조합하는 방향으로 설계한다.
 
 ## 트러블슈팅 요약
