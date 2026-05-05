@@ -78,6 +78,11 @@ public class JwtTokenProvider {
         return tokenEmail != null && tokenEmail.equals(userDetails.getUsername());
     }
 
+    public Date getRefreshTokenExpiration(String token) {
+        validateToken(token, refreshKey);
+        return getClaimFromToken(token, refreshKey, Claims::getExpiration);
+    }
+
     public boolean isTokenExpired(String token) {
         Date expiration = getClaimFromToken(token,accessKey,Claims::getExpiration);
         return expiration.before(new Date());
