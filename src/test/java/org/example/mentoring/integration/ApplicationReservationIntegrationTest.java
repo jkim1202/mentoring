@@ -240,6 +240,7 @@ public class ApplicationReservationIntegrationTest {
         Reservation reservation = reservationRepository.findByApplicationId(fixture.application().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
 
+        reservationService.markPaid(reservation.getId(), fixture.menteeDetails());
         reservationService.confirmPaid(reservation.getId(), fixture.mentorDetails());
 
         assertThatThrownBy(() -> reservationService.cancelReservation(reservation.getId(), fixture.menteeDetails()))

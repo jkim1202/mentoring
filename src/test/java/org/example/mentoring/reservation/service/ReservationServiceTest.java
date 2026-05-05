@@ -744,6 +744,7 @@ public class ReservationServiceTest {
                 .status(ReservationStatus.PENDING_PAYMENT)
                 .createdAt(LocalDateTime.now().minusMinutes(30))
                 .build();
+        reservation.markPaid();
 
         MentoringUserDetails userDetails = new MentoringUserDetails(
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
@@ -759,6 +760,56 @@ public class ReservationServiceTest {
         assertThat(result.partnerNickname()).isEqualTo(mentee.getNickname());
         assertThat(reservation.getMentorPaidConfirmedAt()).isNotNull();
         then(reservationRepository).should().save(reservation);
+    }
+
+    @Test
+    @DisplayName("멘티 입금 표시 전에는 입금 확인 실패")
+    void confirm_paid_without_mark_paid_fail() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        User mentee = User.builder()
+                .id(2L)
+                .email("mentee@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .build();
+
+        LocalDateTime startAt = LocalDateTime.now().plusHours(2);
+        Slot slot = Slot.builder()
+                .id(100L)
+                .listing(listing)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(SlotStatus.BOOKED)
+                .build();
+
+        Reservation reservation = Reservation.builder()
+                .id(10000L)
+                .listing(listing)
+                .slot(slot)
+                .mentor(mentor)
+                .mentee(mentee)
+                .startAt(startAt)
+                .endAt(startAt.plusHours(1))
+                .status(ReservationStatus.PENDING_PAYMENT)
+                .createdAt(LocalDateTime.now().minusMinutes(30))
+                .build();
+
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
+        );
+
+        given(reservationRepository.findById(10000L)).willReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.confirmPaid(10000L, userDetails))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_PAYMENT_NOT_MARKED));
     }
 
     @Test

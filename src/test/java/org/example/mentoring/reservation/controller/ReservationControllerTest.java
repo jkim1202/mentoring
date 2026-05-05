@@ -157,6 +157,18 @@ public class ReservationControllerTest {
     }
 
     @Test
+    @DisplayName("예약 입금 확인 실패(멘티 입금 표시 전)")
+    void confirm_paid_without_mark_paid_fail() throws Exception {
+        given(reservationService.confirmPaid(any(), any()))
+                .willThrow(new BusinessException(ErrorCode.RESERVATION_PAYMENT_NOT_MARKED));
+
+        mockMvc.perform(patch("/api/reservations/{id}/confirm-paid", 1L)
+                        .with(authentication(authOf(10L))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("RESERVATION_009"));
+    }
+
+    @Test
     @DisplayName("예약 취소 성공")
     void cancel_reservation_success() throws Exception {
         ReservationSummaryResponseDto res = new ReservationSummaryResponseDto(
