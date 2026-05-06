@@ -5,7 +5,7 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
-import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchResponseDto;
 import org.example.mentoring.reservation.service.ReservationMessageService;
 import org.example.mentoring.security.JwtAuthenticationFilter;
 import org.example.mentoring.security.MentoringUserDetails;
@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -111,26 +112,28 @@ class ReservationMessageControllerTest {
     @Test
     @DisplayName("예약 메시지 목록 조회 성공")
     void get_messages_success() throws Exception {
-        List<ReservationMessageResponseDto> response = List.of(
-                new ReservationMessageResponseDto(1L, 1L, "멘토", "첫 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 0)),
-                new ReservationMessageResponseDto(2L, 2L, "멘티", "두 번째 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 1))
+        List<ReservationMessageSearchResponseDto> response = List.of(
+                new ReservationMessageSearchResponseDto(1L, 1L, "멘토", "첫 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 0)),
+                new ReservationMessageSearchResponseDto(2L, 2L, "멘티", "두 번째 메시지", java.time.LocalDateTime.of(2026, 4, 12, 10, 1))
         );
 
-        given(reservationMessageService.getMessages(any(), any())).willReturn(response);
+        given(reservationMessageService.getMessages(any(), any(), any())).willReturn(new PageImpl<>(response));
 
         mockMvc.perform(get("/api/reservations/{reservationId}/messages", 10L)
+                        .param("page", "0")
+                        .param("size", "10")
                         .with(authentication(authOf(2L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].messageId").value(1L))
-                .andExpect(jsonPath("$[0].senderNickname").value("멘토"))
-                .andExpect(jsonPath("$[1].messageId").value(2L))
-                .andExpect(jsonPath("$[1].senderNickname").value("멘티"));
+                .andExpect(jsonPath("$.content[0].messageId").value(1L))
+                .andExpect(jsonPath("$.content[0].senderNickname").value("멘토"))
+                .andExpect(jsonPath("$.content[1].messageId").value(2L))
+                .andExpect(jsonPath("$.content[1].senderNickname").value("멘티"));
     }
 
     @Test
     @DisplayName("예약 당사자가 아니면 메시지 목록 조회 실패")
     void get_messages_fail_when_not_participant() throws Exception {
-        given(reservationMessageService.getMessages(any(), any()))
+        given(reservationMessageService.getMessages(any(), any(), any()))
                 .willThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN));
 
         mockMvc.perform(get("/api/reservations/{reservationId}/messages", 10L)

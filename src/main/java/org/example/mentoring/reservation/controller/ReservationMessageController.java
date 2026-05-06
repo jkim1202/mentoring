@@ -1,6 +1,5 @@
 package org.example.mentoring.reservation.controller;
 
-import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -9,22 +8,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
-import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchRequestDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchResponseDto;
 import org.example.mentoring.reservation.service.ReservationMessageService;
 import org.example.mentoring.security.MentoringUserDetails;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/reservations/{reservationId}/messages")
@@ -59,10 +54,11 @@ public class ReservationMessageController {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<List<ReservationMessageResponseDto>> getMessages(
+    public ResponseEntity<Page<ReservationMessageSearchResponseDto>> getMessages(
             @PathVariable Long reservationId,
+            @ModelAttribute ReservationMessageSearchRequestDto requestDto,
             @Parameter(hidden = true)
             @AuthenticationPrincipal MentoringUserDetails userDetails) {
-        return ResponseEntity.ok(reservationMessageService.getMessages(reservationId, userDetails));
+        return ResponseEntity.ok(reservationMessageService.getMessages(reservationId, userDetails, requestDto));
     }
 }
