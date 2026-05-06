@@ -11,6 +11,7 @@ import org.example.mentoring.auth.service.AuthService;
 import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.security.JwtAuthenticationFilter;
+import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.UserStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -109,6 +116,16 @@ public class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("로그아웃 성공")
+    void logout_success() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .with(authentication(authOf(1L))))
+                .andExpect(status().isNoContent());
+
+        then(authService).should().logout(any(MentoringUserDetails.class));
+    }
+
+    @Test
     @DisplayName("요청 검증 실패 - 이메일 형식 오류")
     void login_validation_fail() throws Exception {
         LoginRequestDto req = new LoginRequestDto("not-email", "password123");
@@ -118,5 +135,21 @@ public class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_001"));
+    }
+
+    private UsernamePasswordAuthenticationToken authOf(Long userId) {
+        MentoringUserDetails userDetails = new MentoringUserDetails(
+                userId,
+                "user@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
+
+        return new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
     }
 }

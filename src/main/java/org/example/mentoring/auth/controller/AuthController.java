@@ -1,7 +1,9 @@
 package org.example.mentoring.auth.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,11 +17,10 @@ import org.example.mentoring.auth.dto.RefreshResponseDto;
 import org.example.mentoring.auth.dto.RegisterRequestDto;
 import org.example.mentoring.auth.dto.RegisterResponseDto;
 import org.example.mentoring.auth.service.AuthService;
+import org.example.mentoring.security.MentoringUserDetails;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -38,7 +39,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "회원가입 성공"),
             @ApiResponse(responseCode = "400", description = "요청 검증 실패 또는 중복 이메일", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDto authRequestDto) {
+    public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto authRequestDto) {
         RegisterResponseDto responseDto = authService.register(authRequestDto);
         return ResponseEntity.ok(responseDto);
     }
@@ -50,7 +51,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "로그인 성공"),
             @ApiResponse(responseCode = "401", description = "로그인 실패", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
         LoginResponseDto responseDto = authService.login(loginRequestDto);
         return ResponseEntity.ok(responseDto);
     }
@@ -62,8 +63,23 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "재발급 성공"),
             @ApiResponse(responseCode = "401", description = "유효하지 않거나 만료된 토큰", content = @Content(schema = @Schema(hidden = true)))
     })
-    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshRequestDto refreshRequestDto) {
+    public ResponseEntity<RefreshResponseDto> refreshToken(@Valid @RequestBody RefreshRequestDto refreshRequestDto) {
         RefreshResponseDto responseDto = authService.refreshToken(refreshRequestDto);
         return ResponseEntity.ok(responseDto);
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "서버에 저장된 refresh token을 삭제한다. 기존 access token은 만료 전까지 유효하다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "로그아웃 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true)))
+    })
+    public ResponseEntity<Void> logout(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal MentoringUserDetails userDetails
+    ) {
+        authService.logout(userDetails);
+        return ResponseEntity.noContent().build();
     }
 }

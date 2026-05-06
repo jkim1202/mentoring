@@ -13,4 +13,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RefreshToken> findByUserId(Long userId);
+
+    void deleteByUserId(Long userId);
 }
