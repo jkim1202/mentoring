@@ -4,7 +4,8 @@ import org.example.mentoring.exception.BusinessException;
 import org.example.mentoring.exception.ErrorCode;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
-import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchRequestDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationMessage;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -13,10 +14,12 @@ import org.example.mentoring.reservation.repository.ReservationRepository;
 import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class ReservationMessageService {
@@ -51,15 +54,20 @@ public class ReservationMessageService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReservationMessageResponseDto> getMessages(Long reservationId, MentoringUserDetails userDetails) {
+    public Page<ReservationMessageSearchResponseDto> getMessages(Long reservationId, MentoringUserDetails userDetails, ReservationMessageSearchRequestDto req) {
         Reservation reservation = findReservation(reservationId);
         User user = findUser(userDetails.getId());
 
         validateParticipantAuthority(reservation, user);
 
-        return reservationMessageRepository.findByReservationIdOrderByCreatedAtAsc(reservationId).stream()
-                .map(ReservationMessageResponseDto::from)
-                .toList();
+        int page = req.page() == null ? 0 : req.page();
+        int size = req.size() == null ? 20 : req.size();
+
+        Sort sort = Sort.by(Sort.Order.asc("createdAt"), Sort.Order.asc("id"));
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return reservationMessageRepository.findByReservationId(reservationId, pageable)
+                .map(ReservationMessageSearchResponseDto::from);
     }
 
     private void validateParticipantAuthority(Reservation reservation, User user) {

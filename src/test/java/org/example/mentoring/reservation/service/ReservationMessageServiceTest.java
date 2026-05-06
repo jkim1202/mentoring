@@ -6,7 +6,8 @@ import org.example.mentoring.listing.entity.Listing;
 import org.example.mentoring.listing.entity.PlaceType;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateRequestDto;
 import org.example.mentoring.reservation.dto.ReservationMessageCreateResponseDto;
-import org.example.mentoring.reservation.dto.ReservationMessageResponseDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchRequestDto;
+import org.example.mentoring.reservation.dto.ReservationMessageSearchResponseDto;
 import org.example.mentoring.reservation.entity.Reservation;
 import org.example.mentoring.reservation.entity.ReservationMessage;
 import org.example.mentoring.reservation.entity.ReservationStatus;
@@ -24,6 +25,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +36,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -52,6 +59,8 @@ class ReservationMessageServiceTest {
 
     @Captor
     private ArgumentCaptor<ReservationMessage> reservationMessageCaptor;
+    @Captor
+    private ArgumentCaptor<Pageable> pageableCaptor;
 
     @Test
     @DisplayName("예약 메시지 생성 성공")
@@ -64,7 +73,7 @@ class ReservationMessageServiceTest {
 
         given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
-        given(reservationMessageRepository.save(org.mockito.ArgumentMatchers.any(ReservationMessage.class)))
+        given(reservationMessageRepository.save(any(ReservationMessage.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         ReservationMessageCreateResponseDto response = reservationMessageService.createMessage(10L, requestDto, userDetails);
@@ -97,7 +106,7 @@ class ReservationMessageServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
 
-        then(reservationMessageRepository).should(never()).save(org.mockito.ArgumentMatchers.any(ReservationMessage.class));
+        then(reservationMessageRepository).should(never()).save(any(ReservationMessage.class));
     }
 
     @Test
@@ -116,7 +125,7 @@ class ReservationMessageServiceTest {
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESERVATION_MESSAGE_NOT_WRITABLE));
 
-        then(reservationMessageRepository).should(never()).save(org.mockito.ArgumentMatchers.any(ReservationMessage.class));
+        then(reservationMessageRepository).should(never()).save(any(ReservationMessage.class));
     }
 
     @Test
@@ -143,17 +152,49 @@ class ReservationMessageServiceTest {
 
         given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
-        given(reservationMessageRepository.findByReservationIdOrderByCreatedAtAsc(10L))
-                .willReturn(List.of(firstMessage, secondMessage));
+        given(reservationMessageRepository.findByReservationId(eq(10L), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(firstMessage, secondMessage)));
 
-        List<ReservationMessageResponseDto> response = reservationMessageService.getMessages(10L, userDetails);
+        Page<ReservationMessageSearchResponseDto> response = reservationMessageService.getMessages(
+                10L,
+                userDetails,
+                new ReservationMessageSearchRequestDto(10, 0)
+        );
 
-        assertThat(response).hasSize(2);
-        assertThat(response.get(0).messageId()).isEqualTo(100L);
-        assertThat(response.get(0).senderUserId()).isEqualTo(1L);
-        assertThat(response.get(0).content()).isEqualTo("첫 메시지");
-        assertThat(response.get(1).messageId()).isEqualTo(101L);
-        assertThat(response.get(1).senderUserId()).isEqualTo(2L);
+        then(reservationMessageRepository).should().findByReservationId(eq(10L), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+
+        assertThat(pageable.getPageNumber()).isEqualTo(0);
+        assertThat(pageable.getPageSize()).isEqualTo(10);
+        assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Order.asc("createdAt"), Sort.Order.asc("id")));
+        assertThat(response.getContent()).hasSize(2);
+        assertThat(response.getContent().get(0).messageId()).isEqualTo(100L);
+        assertThat(response.getContent().get(0).senderUserId()).isEqualTo(1L);
+        assertThat(response.getContent().get(0).content()).isEqualTo("첫 메시지");
+        assertThat(response.getContent().get(1).messageId()).isEqualTo(101L);
+        assertThat(response.getContent().get(1).senderUserId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("예약 메시지 목록 조회는 기본 페이지 조건을 사용한다")
+    void get_messages_uses_default_page_request() {
+        User mentor = createUser(1L, "mentor@test.com", "멘토");
+        User mentee = createUser(2L, "mentee@test.com", "멘티");
+        Reservation reservation = createReservation(10L, mentor, mentee, ReservationStatus.COMPLETED);
+        MentoringUserDetails userDetails = createUserDetails(mentee);
+
+        given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
+        given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
+        given(reservationMessageRepository.findByReservationId(eq(10L), any(Pageable.class)))
+                .willReturn(Page.empty());
+
+        reservationMessageService.getMessages(10L, userDetails, new ReservationMessageSearchRequestDto(null, null));
+
+        then(reservationMessageRepository).should().findByReservationId(eq(10L), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+
+        assertThat(pageable.getPageNumber()).isEqualTo(0);
+        assertThat(pageable.getPageSize()).isEqualTo(20);
     }
 
     @Test
@@ -168,7 +209,11 @@ class ReservationMessageServiceTest {
         given(reservationRepository.findById(10L)).willReturn(Optional.of(reservation));
         given(userRepository.findById(3L)).willReturn(Optional.of(outsider));
 
-        assertThatThrownBy(() -> reservationMessageService.getMessages(10L, userDetails))
+        assertThatThrownBy(() -> reservationMessageService.getMessages(
+                10L,
+                userDetails,
+                new ReservationMessageSearchRequestDto(10, 0)
+        ))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
     }
