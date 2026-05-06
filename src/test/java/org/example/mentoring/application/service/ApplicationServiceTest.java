@@ -99,7 +99,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
                 2L,
                 100L,
@@ -151,7 +151,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
                 2L,
                 100L,
@@ -201,7 +201,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         given(applicationRepository.existsByMenteeIdAndSlotIdAndStatus(
                 2L,
                 100L,
@@ -254,7 +254,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(requestListing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         willThrow(new BusinessException(ErrorCode.SLOT_NOT_BELONG_TO_LISTING))
                 .given(slotService).validateSlotBelongsToListing(slot, 10L);
 
@@ -466,7 +466,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         willThrow(new BusinessException(ErrorCode.SLOT_ALREADY_BOOKED))
                 .given(slotService).validateSlotAvailableForApplication(slot);
 
@@ -511,7 +511,7 @@ public class ApplicationServiceTest {
 
         given(userRepository.findById(2L)).willReturn(Optional.of(mentee));
         given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
-        given(slotService.findSlotById(100L)).willReturn(slot);
+        given(slotService.findSlotByIdForUpdate(100L)).willReturn(slot);
         willThrow(new BusinessException(ErrorCode.SLOT_EXPIRED))
                 .given(slotService).validateSlotAvailableForApplication(slot);
 

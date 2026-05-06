@@ -59,7 +59,7 @@ public class ApplicationService {
     public ApplicationCreateResponseDto createApplication(ApplicationCreateRequestDto req, MentoringUserDetails userDetails) {
         User mentee = findUserById(userDetails.getId());
         Listing listing = findListingById(req.listingId());
-        Slot slot = slotService.findSlotById(req.slotId());
+        Slot slot = slotService.findSlotByIdForUpdate(req.slotId());
 
         slotService.validateSlotBelongsToListing(slot, listing.getId());
         slotService.validateSlotAvailableForApplication(slot);

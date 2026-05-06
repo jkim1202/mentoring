@@ -83,7 +83,7 @@ public class SlotService {
 
     @Transactional
     public SlotResponseDto updateSlot(Long slotId, SlotUpdateRequestDto requestDto, MentoringUserDetails loginUser) {
-        Slot slot = findSlotById(slotId);
+        Slot slot = findSlotByIdForUpdate(slotId);
         User user = userRepository.findById(loginUser.getId()).orElseThrow(
                 () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
         );

@@ -241,7 +241,7 @@ class SlotServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
         given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
 
         var result = slotService.updateSlot(100L, requestDto, userDetails);
@@ -249,6 +249,7 @@ class SlotServiceTest {
         assertThat(result.slotId()).isEqualTo(100L);
         assertThat(result.startAt()).isEqualTo(requestDto.startAt());
         assertThat(result.endAt()).isEqualTo(requestDto.endAt());
+        then(slotRepository).should().findByIdForUpdate(100L);
     }
 
     @Test
@@ -280,7 +281,7 @@ class SlotServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
         given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
 
         assertThatThrownBy(() -> slotService.updateSlot(100L, requestDto, userDetails))
@@ -317,7 +318,7 @@ class SlotServiceTest {
                 1L, "mentor@test.com", "pw", UserStatus.ACTIVE, List.of()
         );
 
-        given(slotRepository.findById(100L)).willReturn(Optional.of(slot));
+        given(slotRepository.findByIdForUpdate(100L)).willReturn(Optional.of(slot));
         given(userRepository.findById(1L)).willReturn(Optional.of(mentor));
 
         assertThatThrownBy(() -> slotService.updateSlot(100L, requestDto, userDetails))
