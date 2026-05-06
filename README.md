@@ -1,6 +1,6 @@
 # Mentoring
 
-멘토와 멘티를 연결하는 멘토링 플랫폼 백엔드 프로젝트다. 현재는 인증, 멘토링 글 관리, 찜, 신청, 예약 생성 및 상태 전이까지의 핵심 도메인 흐름을 구현하고 있다.
+멘토와 멘티를 연결하는 멘토링 플랫폼 백엔드 프로젝트다. 현재는 인증, 멘토링 글 관리, 찜, 신청, 예약, 리뷰, 예약 메시지까지의 백엔드 MVP 흐름을 구현하고 있다.
 
 ## 프로젝트 목표
 - Spring Boot 기반 백엔드 구조 익히기
@@ -23,6 +23,7 @@
 - 활성 예약이 존재하는 슬롯에는 새 신청/수락을 진행할 수 없다.
 - 신청 수락 시 예약이 생성되며, 예약 생성과 슬롯 점유는 같은 트랜잭션에서 처리한다.
 - 신청 상태 변경은 신청 row 비관적 쓰기 락을 기준으로 순차 처리한다.
+- 슬롯 시간/상태에 근거해 쓰기를 수행하는 흐름은 slot row 비관적 쓰기 락을 기준으로 직렬화한다.
 - 시작 시간이 지난 슬롯의 신청은 수락할 수 없다.
 - 시작 시간이 지난 슬롯은 `EXPIRED`로 본다.
 - 활성 예약 상태(`PENDING_PAYMENT`, `CONFIRMED`)에서는 같은 슬롯에 중복 예약할 수 없다.
@@ -50,8 +51,10 @@
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
+- `POST /api/auth/logout`
 - JWT 기반 인증 필터 및 인증 실패 응답 처리
 - refresh token DB 저장 및 회전 방식 재발급
+- logout 시 서버에 저장된 refresh token 삭제
 - 비활성 계정의 access/refresh token 사용 차단
 - 회원가입 이메일 DB unique 충돌 예외 매핑
 
@@ -67,6 +70,7 @@
 - `PATCH /api/listings/{id}`
 - `PATCH /api/listings/{id}/status`
 - Querydsl 기반 검색 / 정렬 / 페이징
+- 상세/목록 응답에 로그인 사용자의 `liked` 여부 포함
 
 ### Slot
 - `POST /api/listings/{listingId}/slots`
@@ -77,6 +81,7 @@
 - `from`, `to`, `page`, `size` 기반 목록 조회 지원
 - 시간 범위 오류와 과거 시작 시간 검증 포함
 - `BOOKED`, `EXPIRED` 슬롯은 수정 불가
+- 슬롯 수정, 신청 생성, 예약 생성은 같은 slot row 비관적 쓰기 락 기준으로 정합성 보장
 
 ### Application
 - `POST /api/applications`
@@ -86,6 +91,7 @@
 - `PATCH /api/applications/{id}/reject`
 - `PATCH /api/applications/{id}/cancel`
 - 상태 변경 시 신청 row 비관적 쓰기 락 적용
+- 생성 시 slot row 비관적 쓰기 락과 DB unique 제약으로 중복/경쟁 상황 방어
 - `accept/reject`는 멘토 권한, `cancel`은 멘티 권한 기준 검증
 
 ### Reservation
@@ -98,6 +104,7 @@
 - `GET /api/reservations`
 - `POST /api/reservations/{reservationId}/messages`
 - `GET /api/reservations/{reservationId}/messages`
+- 예약 메시지 목록은 `page`, `size` 기반 페이징과 `createdAt ASC`, `id ASC` 정렬 지원
 - 예약 상태 변경 응답에 현재 `slotStatus` 포함
 - `menteePaidMarkedAt`, `mentorPaidConfirmedAt` 필드로 결제 표시/확인 시각 기록
 - 예약은 “반복 수업”이 아니라 **1회성 멘토링 일정** 기준으로 설계
@@ -273,6 +280,8 @@ erDiagram
 - `Reservation`은 `start_at`, `end_at`을 별도로 저장해 슬롯 변경/삭제 이후에도 예약 시각 이력을 보존한다.
 - 멘티 입금 표시와 멘토 입금 확인은 각각 `mentee_paid_marked_at`, `mentor_paid_confirmed_at`으로 기록한다.
 - refresh token은 원문이 아니라 SHA-256 hash를 저장하고, 재발급 시 저장된 현재 token만 허용한 뒤 새 token으로 회전한다.
+- logout은 서버에 저장된 refresh token을 삭제한다. 이미 발급된 access token은 만료 전까지 유효하며, 즉시 무효화는 Redis blacklist 확장 범위로 둔다.
+- 슬롯 수정, 신청 생성, 예약 생성처럼 slot 상태/시간에 근거해 쓰기를 수행하는 흐름은 같은 slot row 비관적 쓰기 락 기준으로 직렬화한다.
 - 만료 정리처럼 여러 도메인을 함께 건드리는 작업은 도메인 서비스 간 직접 호출 대신 별도 use case 계층에서 조합하는 방향으로 설계한다.
 
 ## 트러블슈팅 요약
@@ -346,6 +355,9 @@ Flyway로 스키마를 버전 관리한다.
 - `V10__add_reservation_payment_timestamps.sql`
 - `V11__create_reviews.sql`
 - `V12__create_reservation_message.sql`
+- `V13__create_likes.sql`
+- `V14__create_refresh_tokens.sql`
+- `V15__add_applied_application_unique_constraint.sql`
 
 현재 기준 핵심 테이블:
 - `users`
@@ -355,6 +367,10 @@ Flyway로 스키마를 버전 관리한다.
 - `slots`
 - `applications`
 - `reservations`
+- `reservation_messages`
+- `reviews`
+- `likes`
+- `refresh_tokens`
 
 
 ## 예시 요청 / 응답
@@ -401,6 +417,22 @@ Content-Type: application/json
   "refreshToken": "<REFRESH_TOKEN>"
 }
 ```
+
+### 로그아웃
+요청:
+```http
+POST /api/auth/logout
+Authorization: Bearer <ACCESS_TOKEN>
+```
+
+응답:
+```http
+204 No Content
+```
+
+- 서버에 저장된 refresh token을 삭제한다.
+- 삭제 이후 기존 refresh token으로 재발급할 수 없다.
+- 이미 발급된 access token은 만료 전까지 유효하다.
 
 ### 등록글 생성
 요청:
@@ -673,17 +705,14 @@ JWT 인증이 필요한 API는 Swagger UI의 `Authorize` 버튼에서 Bearer tok
 - `/swagger-ui/index.html`
 
 ## 다음 작업
-- Reservation 통합 테스트 보강
-  - 동일 슬롯 동시 수락 경쟁 상황
-  - 필요 시 `flush/clear` 기반 DB 재조회 검증 강화
-- 채팅 MVP 구현
-  - reservation 당 1 message thread
-  - 예약 당사자만 접근 가능
-  - `reservation_messages` 테이블 기반 메시지 저장 API / 메시지 조회 API
-  - 메시지 도메인과 저장/조회 흐름은 REST로 먼저 안정화
-  - 쓰기 가능 상태는 `PENDING_PAYMENT`, `CONFIRMED`
-  - `CANCELED`, `COMPLETED`는 읽기만 허용
-  - 실시간 WebSocket/STOMP, 읽음 처리, 안 읽은 메시지 수, 푸시/알림은 후속 확장으로 분리
+- 프론트 연동 기반 실제 서비스 플로우 테스트
+- stale UI에서 본 슬롯 시간과 신청 시점의 서버 슬롯 시간이 같은지 검증하는 정책 검토
+- Redis 기반 access token blacklist 도입 시 logout 즉시 무효화 확장
+- 운영 확장 후보 정리
+  - 알림
+  - 파일/이미지 업로드
+  - 결제 PG 연동
+  - 관리자 기능
 
 ## 통합 테스트 진행 상태
 - `Application ACCEPTED -> Reservation 생성 -> Slot BOOKED` 검증 완료
@@ -691,3 +720,4 @@ JWT 인증이 필요한 API는 Swagger UI의 `Authorize` 버튼에서 Bearer tok
 - `CONFIRMED` 상태에서 멘티 24시간 이내 취소 불가 검증 완료
 - 취소 후 같은 슬롯 재예약 가능 검증 완료
 - 활성 예약이 있는 동일 슬롯 중복 예약 실패 검증 완료
+- 신청 생성과 슬롯 수정의 slot row 락 경합 정책 검증 완료
