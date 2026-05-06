@@ -8,6 +8,7 @@ import org.example.mentoring.auth.dto.RegisterRequestDto;
 import org.example.mentoring.auth.dto.RegisterResponseDto;
 import org.example.mentoring.auth.entity.RefreshToken;
 import org.example.mentoring.auth.repository.RefreshTokenRepository;
+import org.example.mentoring.security.MentoringUserDetails;
 import org.example.mentoring.user.entity.Role;
 import org.example.mentoring.user.entity.User;
 import org.example.mentoring.user.entity.UserStatus;
@@ -132,6 +133,11 @@ public class AuthService {
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
         savedToken.rotate(hash(newRefreshToken), toLocalDateTime(jwtTokenProvider.getRefreshTokenExpiration(newRefreshToken)));
         return new RefreshResponseDto(newAccessToken, newRefreshToken);
+    }
+
+    @Transactional
+    public void logout(MentoringUserDetails userDetails) {
+        refreshTokenRepository.deleteByUserId(userDetails.getId());
     }
 
     private void saveOrRotateRefreshToken(User user, String refreshToken) {

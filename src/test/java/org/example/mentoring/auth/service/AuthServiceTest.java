@@ -187,6 +187,17 @@ class AuthServiceTest {
         verify(jwtTokenProvider, never()).generateRefreshToken(userDetails);
     }
 
+    @Test
+    @DisplayName("로그아웃은 현재 사용자의 refresh token을 삭제한다")
+    void logout_success_deletes_refresh_token() {
+        AuthService authService = authService();
+        MentoringUserDetails userDetails = activeUserDetails();
+
+        authService.logout(userDetails);
+
+        verify(refreshTokenRepository).deleteByUserId(1L);
+    }
+
     private AuthService authService() {
         return new AuthService(
                 userRepository,
