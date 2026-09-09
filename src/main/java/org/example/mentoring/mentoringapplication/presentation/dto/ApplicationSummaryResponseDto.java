@@ -1,0 +1,41 @@
+package org.example.mentoring.mentoringapplication.presentation.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import org.example.mentoring.mentoringapplication.domain.MentoringApplication;
+import org.example.mentoring.mentoringapplication.domain.ApplicationStatus;
+import org.example.mentoring.user.domain.User;
+
+import java.time.LocalDateTime;
+
+@Schema(description = "신청 목록 응답 항목")
+public record ApplicationSummaryResponseDto(
+        Long applicationId,
+        ApplicationStatus applicationStatus,
+        Long listingId,
+        String listingTitle,
+        Long slotId,
+        LocalDateTime startAt,
+        LocalDateTime endAt,
+        Long partnerUserId,
+        String partnerNickname,
+        LocalDateTime createdAt
+) {
+    public static ApplicationSummaryResponseDto from(MentoringApplication application, Long loginUserId) {
+        User partner = application.getListing().getMentor().getId().equals(loginUserId)
+                ? application.getMentee()
+                : application.getListing().getMentor();
+
+        return new ApplicationSummaryResponseDto(
+                application.getId(),
+                application.getStatus(),
+                application.getListing().getId(),
+                application.getListing().getTitle(),
+                application.getSlot().getId(),
+                application.getSlot().getStartAt(),
+                application.getSlot().getEndAt(),
+                partner.getId(),
+                partner.getNickname(),
+                application.getCreatedAt()
+        );
+    }
+}

@@ -1,0 +1,175 @@
+package org.example.mentoring.listing.application;
+
+import org.example.mentoring.like.infrastructure.repository.LikeRepository;
+import org.example.mentoring.listing.presentation.dto.ListingResponseDto;
+import org.example.mentoring.listing.presentation.dto.ListingSearchRequestDto;
+import org.example.mentoring.listing.presentation.dto.ListingSummaryResponseDto;
+import org.example.mentoring.listing.presentation.dto.MyListingSearchRequestDto;
+import org.example.mentoring.listing.presentation.dto.MyListingSort;
+import org.example.mentoring.listing.presentation.dto.MyListingSummaryResponseDto;
+import org.example.mentoring.listing.domain.Listing;
+import org.example.mentoring.listing.domain.ListingStatus;
+import org.example.mentoring.listing.domain.PlaceType;
+import org.example.mentoring.listing.infrastructure.repository.ListingRepository;
+import org.example.mentoring.global.security.MentoringUserDetails;
+import org.example.mentoring.user.domain.User;
+import org.example.mentoring.user.domain.UserStatus;
+import org.example.mentoring.user.infrastructure.repository.UserRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+
+@ExtendWith(MockitoExtension.class)
+class ListingServiceTest {
+
+    @InjectMocks
+    private ListingService listingService;
+
+    @Mock
+    private ListingRepository listingRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private LikeRepository likeRepository;
+
+    @Test
+    @DisplayName("내 등록글 조회 성공")
+    void get_my_listings_success() {
+        User mentor = User.builder()
+                .id(1L)
+                .email("mentor@test.com")
+                .build();
+
+        Listing listing = Listing.builder()
+                .id(10L)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring")
+                .price(50000)
+                .placeType(PlaceType.ONLINE)
+                .description("설명")
+                .status(ListingStatus.ACTIVE)
+                .avgRating(new BigDecimal("4.80"))
+                .reviewCount(12)
+                .createdAt(LocalDateTime.of(2026, 4, 18, 10, 0))
+                .build();
+
+        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, MyListingSort.LATEST, null);
+
+        given(listingRepository.findByMentorId(1L, PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))))
+                .willReturn(new PageImpl<>(List.of(listing), PageRequest.of(0, 10), 1));
+
+        var result = listingService.getMyListings(1L, requestDto);
+
+        assertThat(result.getContent()).hasSize(1);
+        MyListingSummaryResponseDto item = result.getContent().get(0);
+        assertThat(item.id()).isEqualTo(10L);
+        assertThat(item.status()).isEqualTo(ListingStatus.ACTIVE);
+        assertThat(item.reviewCount()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("내 등록글 상태 필터 조회 성공")
+    void get_my_listings_with_status_filter_success() {
+        MyListingSearchRequestDto requestDto = new MyListingSearchRequestDto(0, 10, MyListingSort.LATEST, ListingStatus.INACTIVE);
+
+        given(listingRepository.findByMentorIdAndStatus(any(), any(), any()))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        var result = listingService.getMyListings(1L, requestDto);
+
+        assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("등록글 상세 조회 시 로그인 사용자의 liked 여부를 포함한다")
+    void get_listing_with_liked_success() {
+        User mentor = createUser(1L, "mentor@test.com");
+        Listing listing = createListing(10L, mentor);
+        MentoringUserDetails userDetails = userDetailsOf(2L);
+
+        given(listingRepository.findById(10L)).willReturn(Optional.of(listing));
+        given(likeRepository.existsByUserIdAndListingId(2L, 10L)).willReturn(true);
+
+        ListingResponseDto result = listingService.getListing(10L, userDetails);
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.liked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("등록글 목록 조회 시 liked 여부를 함께 내려준다")
+    void get_listings_with_liked_success() {
+        User mentor = createUser(1L, "mentor@test.com");
+        Listing first = createListing(10L, mentor);
+        Listing second = createListing(11L, mentor);
+        ListingSearchRequestDto requestDto = new ListingSearchRequestDto(0, 10, "LATEST", null, null, null, null);
+        MentoringUserDetails userDetails = userDetailsOf(2L);
+
+        given(listingRepository.search(eq(requestDto), any()))
+                .willReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 10), 2));
+        given(likeRepository.findLikedListingIdsByUserIdAndListingIds(2L, List.of(10L, 11L)))
+                .willReturn(Set.of(10L));
+
+        var result = listingService.getListings(requestDto, userDetails);
+
+        assertThat(result.getContent()).hasSize(2);
+        ListingSummaryResponseDto firstItem = result.getContent().get(0);
+        ListingSummaryResponseDto secondItem = result.getContent().get(1);
+        assertThat(firstItem.id()).isEqualTo(10L);
+        assertThat(firstItem.liked()).isTrue();
+        assertThat(secondItem.id()).isEqualTo(11L);
+        assertThat(secondItem.liked()).isFalse();
+    }
+
+    private User createUser(Long id, String email) {
+        return User.builder()
+                .id(id)
+                .email(email)
+                .build();
+    }
+
+    private Listing createListing(Long id, User mentor) {
+        return Listing.builder()
+                .id(id)
+                .mentor(mentor)
+                .title("Spring 멘토링")
+                .topic("Spring")
+                .price(50000)
+                .placeType(PlaceType.ONLINE)
+                .description("설명")
+                .status(ListingStatus.ACTIVE)
+                .avgRating(new BigDecimal("4.80"))
+                .reviewCount(12)
+                .createdAt(LocalDateTime.of(2026, 4, 18, 10, 0))
+                .build();
+    }
+
+    private MentoringUserDetails userDetailsOf(Long userId) {
+        return new MentoringUserDetails(
+                userId,
+                "mentee@test.com",
+                "pw",
+                UserStatus.ACTIVE,
+                List.of()
+        );
+    }
+}
