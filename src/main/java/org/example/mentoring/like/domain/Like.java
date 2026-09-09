@@ -1,4 +1,4 @@
-package org.example.mentoring.review.domain;
+package org.example.mentoring.like.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,14 +9,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.example.mentoring.listing.domain.Listing;
-import org.example.mentoring.reservation.domain.Reservation;
 import org.example.mentoring.user.domain.User;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -24,35 +22,39 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews")
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(
+        name = "likes",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_likes_user_id_listing_id", columnNames = {"user_id", "listing_id"})
+        }
+)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @EntityListeners(AuditingEntityListener.class)
-public class Review {
+public class Like {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reservation_id")
-    private Reservation reservation;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "listing_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewer_user_id")
-    private User reviewer;
-
-    @Column(nullable = false)
-    private Byte rating;
-
-    @Column(name = "content", columnDefinition = "TEXT")
-    private String content;
-
     @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    private Like(User user, Listing listing) {
+        this.user = user;
+        this.listing = listing;
+    }
+
+    public static Like create(User user, Listing listing) {
+        return new Like(user, listing);
+    }
 }

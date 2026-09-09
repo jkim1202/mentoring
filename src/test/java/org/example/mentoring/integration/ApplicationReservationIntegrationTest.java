@@ -2,30 +2,30 @@ package org.example.mentoring.integration;
 
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.example.mentoring.TestcontainersConfiguration;
-import org.example.mentoring.application.dto.ApplicationCreateRequestDto;
-import org.example.mentoring.application.dto.ApplicationCreateResponseDto;
-import org.example.mentoring.application.entity.Application;
-import org.example.mentoring.application.entity.ApplicationStatus;
-import org.example.mentoring.application.repository.ApplicationRepository;
-import org.example.mentoring.application.service.ApplicationService;
-import org.example.mentoring.exception.BusinessException;
-import org.example.mentoring.exception.ErrorCode;
-import org.example.mentoring.expiration.ExpirationUseCase;
-import org.example.mentoring.listing.entity.Listing;
-import org.example.mentoring.listing.entity.PlaceType;
-import org.example.mentoring.slot.entity.Slot;
-import org.example.mentoring.listing.entity.SlotStatus;
-import org.example.mentoring.listing.repository.ListingRepository;
-import org.example.mentoring.slot.repository.SlotRepository;
-import org.example.mentoring.reservation.entity.Reservation;
-import org.example.mentoring.reservation.entity.ReservationStatus;
-import org.example.mentoring.reservation.repository.ReservationRepository;
-import org.example.mentoring.reservation.service.ReservationService;
-import org.example.mentoring.security.MentoringUserDetails;
-import org.example.mentoring.user.entity.Role;
-import org.example.mentoring.user.entity.User;
-import org.example.mentoring.user.entity.UserStatus;
-import org.example.mentoring.user.repository.UserRepository;
+import org.example.mentoring.mentoringapplication.presentation.dto.ApplicationCreateRequestDto;
+import org.example.mentoring.mentoringapplication.presentation.dto.ApplicationCreateResponseDto;
+import org.example.mentoring.mentoringapplication.domain.MentoringApplication;
+import org.example.mentoring.mentoringapplication.domain.ApplicationStatus;
+import org.example.mentoring.mentoringapplication.infrastructure.repository.MentoringApplicationRepository;
+import org.example.mentoring.mentoringapplication.application.MentoringApplicationService;
+import org.example.mentoring.global.exception.BusinessException;
+import org.example.mentoring.global.exception.ErrorCode;
+import org.example.mentoring.reservation.application.ExpirationUseCase;
+import org.example.mentoring.listing.domain.Listing;
+import org.example.mentoring.listing.domain.PlaceType;
+import org.example.mentoring.slot.domain.Slot;
+import org.example.mentoring.slot.domain.SlotStatus;
+import org.example.mentoring.listing.infrastructure.repository.ListingRepository;
+import org.example.mentoring.slot.infrastructure.repository.SlotRepository;
+import org.example.mentoring.reservation.domain.Reservation;
+import org.example.mentoring.reservation.domain.ReservationStatus;
+import org.example.mentoring.reservation.infrastructure.repository.ReservationRepository;
+import org.example.mentoring.reservation.application.ReservationService;
+import org.example.mentoring.global.security.MentoringUserDetails;
+import org.example.mentoring.user.domain.Role;
+import org.example.mentoring.user.domain.User;
+import org.example.mentoring.user.domain.UserStatus;
+import org.example.mentoring.user.infrastructure.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,15 +53,15 @@ public class ApplicationReservationIntegrationTest {
             User mentee,
             Listing listing,
             Slot slot,
-            Application application,
+            MentoringApplication application,
             MentoringUserDetails mentorDetails,
             MentoringUserDetails menteeDetails
     ) {}
 
     @Autowired
-    private ApplicationService applicationService;
+    private MentoringApplicationService applicationService;
     @Autowired
-    private ApplicationRepository applicationRepository;
+    private MentoringApplicationRepository applicationRepository;
     @Autowired
     private ReservationRepository reservationRepository;
     @Autowired
@@ -124,8 +124,8 @@ public class ApplicationReservationIntegrationTest {
                         .build()
         );
 
-        Application application = applicationRepository.save(
-                Application.builder()
+        MentoringApplication application = applicationRepository.save(
+                MentoringApplication.builder()
                         .listing(listing)
                         .slot(slot)
                         .mentee(mentee)
@@ -167,7 +167,7 @@ public class ApplicationReservationIntegrationTest {
         );
 
         // then: 예약 생성 + 슬롯 BOOKED
-        Application acceptedApplication = applicationRepository.findById(fixture.application().getId())
+        MentoringApplication acceptedApplication = applicationRepository.findById(fixture.application().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
         Slot bookedSlot = slotRepository.findById(fixture.slot().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
@@ -266,7 +266,7 @@ public class ApplicationReservationIntegrationTest {
 
         // then: 같은 재활성화 슬롯에 재신청 후 새 예약 생성
         ApplicationCreateResponseDto responseDto = applicationService.createApplication(new ApplicationCreateRequestDto(reopenedSlot.getListing().getId(), reopenedSlot.getId(), "개인사정으로 취소 후 재신청합니다."), fixture.menteeDetails());
-        Application newApplication = applicationRepository.findById(responseDto.id()).orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+        MentoringApplication newApplication = applicationRepository.findById(responseDto.id()).orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
         applicationService.updateApplicationStatus(newApplication.getId(), fixture.mentorDetails(), ApplicationStatus.ACCEPTED);
         Reservation newReservation = reservationRepository.findByApplicationId(newApplication.getId()).orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
         Slot rebookedSlot = slotRepository.findById(reopenedSlot.getId()).orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
@@ -298,7 +298,7 @@ public class ApplicationReservationIntegrationTest {
                 List.of()
         );
         ApplicationCreateResponseDto responseDto = applicationService.createApplication(new ApplicationCreateRequestDto(fixture.listing().getId(), fixture.slot().getId(), "신청합니다. 감사합니다."), mentee2Details);
-        Application application2 = applicationRepository.findById(responseDto.id()).orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
+        MentoringApplication application2 = applicationRepository.findById(responseDto.id()).orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
         // when: 첫 번째 신청 수락 -> 예약 생성
         applicationService.updateApplicationStatus(fixture.application().getId(), fixture.mentorDetails(), ApplicationStatus.ACCEPTED);
@@ -365,8 +365,8 @@ public class ApplicationReservationIntegrationTest {
                         .build()
         );
 
-        Application secondApplication = applicationRepository.save(
-                Application.builder()
+        MentoringApplication secondApplication = applicationRepository.save(
+                MentoringApplication.builder()
                         .listing(fixture.listing())
                         .slot(fixture.slot())
                         .mentee(anotherMentee)
@@ -412,7 +412,7 @@ public class ApplicationReservationIntegrationTest {
         Slot expiredSlot = slotRepository.findById(fixture.slot().getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLOT_NOT_FOUND));
 
-        Application canceledApplication = applicationRepository.findById(secondApplication.getId())
+        MentoringApplication canceledApplication = applicationRepository.findById(secondApplication.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICATION_NOT_FOUND));
 
         // then: 예약 취소, 슬롯 만료, 슬롯에 신청 취소
