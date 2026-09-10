@@ -40,10 +40,10 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email", nullable = false, length = 255)
     private String email;
 
-    @Column(name = "nickname", nullable = true, length = 30)
+    @Column(name = "nickname", nullable = false, length = 50)
     private String nickname;
 
     @Column(name = "phone", length = 30)

@@ -57,7 +57,7 @@ public class AuthControllerTest {
     @Test
     @DisplayName("회원가입 성공")
     void register_success() throws Exception {
-        RegisterRequestDto req = new RegisterRequestDto("test@test.com", "password123");
+        RegisterRequestDto req = new RegisterRequestDto("test@test.com", "password123", "nickname123");
         RegisterResponseDto res = new RegisterResponseDto("test@test.com", UserStatus.ACTIVE);
         given(authService.register(req)).willReturn(res);
         mockMvc.perform(post("/api/auth/register")
@@ -66,6 +66,43 @@ public class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andExpect(jsonPath("$.userStatus").value("ACTIVE"));
+    }
+
+    @Test
+    @DisplayName("회원가입 실패 - 닉네임은 필수다")
+    void register_blank_nickname_validation_fail() throws Exception {
+        RegisterRequestDto req = new RegisterRequestDto("test@test.com", "password123", " ");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_001"));
+    }
+
+    @Test
+    @DisplayName("회원가입 실패 - 닉네임은 50자를 초과할 수 없다")
+    void register_nickname_over_max_length_validation_fail() throws Exception {
+        RegisterRequestDto req = new RegisterRequestDto("test@test.com", "password123", "n".repeat(51));
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_001"));
+    }
+
+    @Test
+    @DisplayName("회원가입 성공 - 닉네임은 50자까지 허용한다")
+    void register_nickname_at_max_length_success() throws Exception {
+        RegisterRequestDto req = new RegisterRequestDto("test@test.com", "password123", "n".repeat(50));
+        RegisterResponseDto res = new RegisterResponseDto("test@test.com", UserStatus.ACTIVE);
+        given(authService.register(req)).willReturn(res);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk());
     }
 
     @Test

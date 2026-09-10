@@ -10,6 +10,7 @@ import org.example.mentoring.global.exception.BusinessException;
 import org.example.mentoring.global.exception.ErrorCode;
 import org.example.mentoring.global.security.JwtTokenProvider;
 import org.example.mentoring.global.security.MentoringUserDetails;
+import org.hibernate.exception.ConstraintViolationException;
 import org.example.mentoring.user.domain.User;
 import org.example.mentoring.user.domain.UserStatus;
 import org.example.mentoring.user.infrastructure.repository.UserRepository;
@@ -27,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HexFormat;
@@ -60,17 +62,47 @@ class AuthServiceTest {
     @DisplayName("회원가입 중 DB unique 충돌은 이메일 중복 예외로 응답한다")
     void register_duplicate_email_conflict_fail() {
         AuthService authService = authService();
-        RegisterRequestDto request = new RegisterRequestDto("user@test.com", "password123");
+        RegisterRequestDto request = new RegisterRequestDto("user@test.com", "password123", "nickname123");
 
         given(userRepository.findByEmail("user@test.com")).willReturn(Optional.empty());
         given(passwordEncoder.encode("password123")).willReturn("encoded-password");
         given(userRepository.saveAndFlush(any(User.class)))
-                .willThrow(new DataIntegrityViolationException("duplicate email"));
+                .willThrow(constraintViolation("users.uk_users_email"));
 
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_EMAIL_ALREADY_EXISTS)
                 );
+    }
+
+    @Test
+    @DisplayName("이메일 이외의 DB 제약조건 충돌은 이메일 중복으로 변환하지 않는다")
+    void register_non_email_constraint_violation_rethrows_original_exception() {
+        AuthService authService = authService();
+        RegisterRequestDto request = new RegisterRequestDto("user@test.com", "password123", "nickname123");
+        DataIntegrityViolationException exception = constraintViolation("some_other_constraint");
+
+        given(userRepository.findByEmail("user@test.com")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("password123")).willReturn("encoded-password");
+        given(userRepository.saveAndFlush(any(User.class))).willThrow(exception);
+
+        assertThatThrownBy(() -> authService.register(request)).isSameAs(exception);
+    }
+
+    @Test
+    @DisplayName("회원가입 시 요청받은 닉네임을 저장한다")
+    void register_success_saves_nickname() {
+        AuthService authService = authService();
+        RegisterRequestDto request = new RegisterRequestDto("user@test.com", "password123", "nickname123");
+
+        given(userRepository.findByEmail("user@test.com")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("password123")).willReturn("encoded-password");
+
+        authService.register(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getNickname()).isEqualTo("nickname123");
     }
 
     @Test
@@ -228,6 +260,16 @@ class AuthServiceTest {
 
     private Date futureDate() {
         return new Date(System.currentTimeMillis() + 86_400_000L);
+    }
+
+    private DataIntegrityViolationException constraintViolation(String constraintName) {
+        SQLException sqlException = new SQLException("constraint violation", "23000", 1062);
+        ConstraintViolationException hibernateException = new ConstraintViolationException(
+                "could not execute statement",
+                sqlException,
+                constraintName
+        );
+        return new DataIntegrityViolationException("could not execute statement", hibernateException);
     }
 
     private String hash(String token) {
