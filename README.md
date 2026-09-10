@@ -384,7 +384,8 @@ Content-Type: application/json
 ```json
 {
   "email": "mentee@example.com",
-  "password": "test1234!"
+  "password": "test1234!",
+  "nickname": "nickname123"
 }
 ```
 

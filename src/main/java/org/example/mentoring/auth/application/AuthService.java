@@ -1,21 +1,22 @@
 package org.example.mentoring.auth.application;
 
+import org.example.mentoring.auth.domain.RefreshToken;
+import org.example.mentoring.auth.infrastructure.repository.RefreshTokenRepository;
 import org.example.mentoring.auth.presentation.dto.LoginRequestDto;
 import org.example.mentoring.auth.presentation.dto.LoginResponseDto;
 import org.example.mentoring.auth.presentation.dto.RefreshRequestDto;
 import org.example.mentoring.auth.presentation.dto.RefreshResponseDto;
 import org.example.mentoring.auth.presentation.dto.RegisterRequestDto;
 import org.example.mentoring.auth.presentation.dto.RegisterResponseDto;
-import org.example.mentoring.auth.domain.RefreshToken;
-import org.example.mentoring.auth.infrastructure.repository.RefreshTokenRepository;
+import org.example.mentoring.global.exception.BusinessException;
+import org.example.mentoring.global.exception.ErrorCode;
+import org.example.mentoring.global.security.JwtTokenProvider;
 import org.example.mentoring.global.security.MentoringUserDetails;
+import org.hibernate.exception.ConstraintViolationException;
 import org.example.mentoring.user.domain.Role;
 import org.example.mentoring.user.domain.User;
 import org.example.mentoring.user.domain.UserStatus;
-import org.example.mentoring.global.exception.BusinessException;
-import org.example.mentoring.global.exception.ErrorCode;
 import org.example.mentoring.user.infrastructure.repository.UserRepository;
-import org.example.mentoring.global.security.JwtTokenProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,6 +38,8 @@ import java.util.HexFormat;
 
 @Service
 public class AuthService {
+    private static final String EMAIL_UNIQUE_CONSTRAINT = "uk_users_email";
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -73,15 +76,19 @@ public class AuthService {
         User user = User.builder()
                 .email(authRequestDto.email())
                 .passwordHash(encodedPassword)
+                .nickname(authRequestDto.nickname())
                 .status(UserStatus.ACTIVE)
                 .roles(roles)
                 .build();
 
-        // 사전 중복 체크 이후 발생한 DB unique 충돌도 동일한 도메인 예외로 매핑한다.
+        // 사전 중복 체크 이후 발생한 email unique 충돌도 동일한 도메인 예외로 매핑한다.
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
+            if (isEmailUniqueConstraintViolation(e)) {
+                throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
+            }
+            throw e;
         }
 
         return new RegisterResponseDto(user.getEmail(), user.getStatus());
@@ -95,15 +102,18 @@ public class AuthService {
                             loginRequestDto.email(), loginRequestDto.password()));
         } catch (AccountStatusException e) {
             throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
-        }catch (AuthenticationException e) {
+        } catch (AuthenticationException e) {
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
+
         UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequestDto.email());
         if (!userDetails.isEnabled()) {
             throw new BusinessException(ErrorCode.AUTH_STATUS_NOT_ACTIVE);
         }
+
         User user = userRepository.findByEmail(loginRequestDto.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
         saveOrRotateRefreshToken(user, refreshToken);
@@ -152,6 +162,20 @@ public class AuthService {
 
     private LocalDateTime toLocalDateTime(java.util.Date date) {
         return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+    }
+
+    private boolean isEmailUniqueConstraintViolation(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException exception) {
+                String constraintName = exception.getConstraintName();
+                return EMAIL_UNIQUE_CONSTRAINT.equals(constraintName)
+                        || (constraintName != null
+                            && constraintName.endsWith("." + EMAIL_UNIQUE_CONSTRAINT));
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private String hash(String token) {
